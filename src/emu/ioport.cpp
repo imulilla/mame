@@ -824,6 +824,20 @@ ioport_field::ioport_field(ioport_port &port, ioport_type type, ioport_value def
 	}
 }
 
+
+//-------------------------------------------------
+//  ~ioport_field - destructor
+//-------------------------------------------------
+
+ioport_field::~ioport_field()
+{
+}
+
+
+//-------------------------------------------------
+//  set_value - programmatically set field value
+//-------------------------------------------------
+
 void ioport_field::set_value(ioport_value value)
 {
 	if (is_analog())
@@ -834,11 +848,15 @@ void ioport_field::set_value(ioport_value value)
 
 
 //-------------------------------------------------
-//  ~ioport_field - destructor
+//  clear_value - clear programmatic override
 //-------------------------------------------------
 
-ioport_field::~ioport_field()
+void ioport_field::clear_value()
 {
+	if (is_analog())
+		live().analog->clear_value();
+	else
+		m_digital_value = false;
 }
 
 
@@ -3442,6 +3460,7 @@ analog_field::analog_field(ioport_field &field)
 		m_adjdefvalue(field.defvalue() & field.mask()),
 		m_adjmin(field.minval() & field.mask()),
 		m_adjmax(field.maxval() & field.mask()),
+		m_adjoverride(field.defvalue() & field.mask()),
 		m_sensitivity(field.sensitivity()),
 		m_reverse(field.analog_reverse()),
 		m_delta(field.delta()),
@@ -3449,9 +3468,8 @@ analog_field::analog_field(ioport_field &field)
 		m_accum(0),
 		m_previous(0),
 		m_previousanalog(0),
-		m_prog_analog_value(0),
-		m_minimum(INPUT_ABSOLUTE_MIN),
-		m_maximum(INPUT_ABSOLUTE_MAX),
+		m_minimum(osd::INPUT_ABSOLUTE_MIN),
+		m_maximum(osd::INPUT_ABSOLUTE_MAX),
 		m_center(0),
 		m_reverse_val(0),
 		m_scalepos(0),
@@ -3465,7 +3483,7 @@ analog_field::analog_field(ioport_field &field)
 		m_single_scale(false),
 		m_interpolate(false),
 		m_lastdigital(false),
-		m_was_written(false)
+		m_use_adjoverride(false)
 {
 	// compute the shift amount and number of bits
 	for (ioport_value mask = field.mask(); !(mask & 1); mask >>= 1)
@@ -3494,7 +3512,7 @@ analog_field::analog_field(ioport_field &field)
 		case IPT_PEDAL:
 		case IPT_PEDAL2:
 		case IPT_PEDAL3:
-			m_center = INPUT_ABSOLUTE_MIN;
+			m_center = osd::INPUT_ABSOLUTE_MIN;
 			m_accum = apply_inverse_sensitivity(m_center);
 			m_absolute = true;
 			m_autocenter = true;
@@ -3513,7 +3531,7 @@ analog_field::analog_field(ioport_field &field)
 		// set each position to be 512 units
 		case IPT_POSITIONAL:
 		case IPT_POSITIONAL_V:
-			m_positionalscale = compute_scale(field.maxval(), INPUT_ABSOLUTE_MAX - INPUT_ABSOLUTE_MIN);
+			m_positionalscale = compute_scale(field.maxval(), osd::INPUT_ABSOLUTE_MAX - osd::INPUT_ABSOLUTE_MIN);
 			m_adjmin = 0;
 			m_adjmax = field.maxval() - 1;
 			m_wraps = field.analog_wraps();
@@ -3549,8 +3567,8 @@ analog_field::analog_field(ioport_field &field)
 		if (!m_single_scale)
 		{
 			// unsigned
-			m_scalepos = compute_scale(m_adjmax - m_adjdefvalue, INPUT_ABSOLUTE_MAX - 0);
-			m_scaleneg = compute_scale(m_adjdefvalue - m_adjmin, 0 - INPUT_ABSOLUTE_MIN);
+			m_scalepos = compute_scale(m_adjmax - m_adjdefvalue, osd::INPUT_ABSOLUTE_MAX - 0);
+			m_scaleneg = compute_scale(m_adjdefvalue - m_adjmin, 0 - osd::INPUT_ABSOLUTE_MIN);
 
 			if (m_adjmin > m_adjmax)
 				m_scaleneg = -m_scaleneg;
@@ -3561,7 +3579,7 @@ analog_field::analog_field(ioport_field &field)
 		else
 		{
 			// single axis that increases from default
-			m_scalepos = compute_scale(m_adjmax - m_adjmin, INPUT_ABSOLUTE_MAX - INPUT_ABSOLUTE_MIN);
+			m_scalepos = compute_scale(m_adjmax - m_adjmin, osd::INPUT_ABSOLUTE_MAX - osd::INPUT_ABSOLUTE_MIN);
 
 			// make the scaling the same for easier coding when we need to scale
 			m_scaleneg = m_scalepos;
@@ -3585,11 +3603,11 @@ analog_field::analog_field(ioport_field &field)
 		if (m_wraps)
 			m_adjmax++;
 
-		m_minimum = (m_adjmin - m_adjdefvalue) * INPUT_RELATIVE_PER_PIXEL;
-		m_maximum = (m_adjmax - m_adjdefvalue) * INPUT_RELATIVE_PER_PIXEL;
+		m_minimum = (m_adjmin - m_adjdefvalue) * osd::INPUT_RELATIVE_PER_PIXEL;
+		m_maximum = (m_adjmax - m_adjdefvalue) * osd::INPUT_RELATIVE_PER_PIXEL;
 
 		// make the scaling the same for easier coding when we need to scale
-		m_scaleneg = m_scalepos = compute_scale(1, INPUT_RELATIVE_PER_PIXEL);
+		m_scaleneg = m_scalepos = compute_scale(1, osd::INPUT_RELATIVE_PER_PIXEL);
 
 		if (m_field.analog_reset())
 			// delta values reverse from center
@@ -3602,11 +3620,11 @@ analog_field::analog_field(ioport_field &field)
 			// relative controls reverse from 1 past their max range
 			if (m_wraps)
 			{
-				// FIXME: positional needs -1, using INPUT_RELATIVE_PER_PIXEL skips a position (and reads outside the table array)
+				// FIXME: positional needs -1, using osd::INPUT_RELATIVE_PER_PIXEL skips a position (and reads outside the table array)
 				if(field.type() == IPT_POSITIONAL || field.type() == IPT_POSITIONAL_V)
 					m_reverse_val --;
 				else
-					m_reverse_val -= INPUT_RELATIVE_PER_PIXEL;
+					m_reverse_val -= osd::INPUT_RELATIVE_PER_PIXEL;
 			}
 		}
 	}
@@ -3679,7 +3697,7 @@ s32 analog_field::apply_settings(s32 value) const
 	else if (m_single_scale)
 		// it's a pedal or the default value is equal to min/max
 		// so we need to adjust the center to the minimum
-		value -= INPUT_ABSOLUTE_MIN;
+		value -= osd::INPUT_ABSOLUTE_MIN;
 
 	// map differently for positive and negative values
 	if (value >= 0)
@@ -3705,15 +3723,27 @@ s32 analog_field::apply_settings(s32 value) const
 
 
 //-------------------------------------------------
-//  set_value - take a new value to be used
-//  at next frame update
+//  set_value - override the value that will be
+//  read from the field
 //-------------------------------------------------
 
 void analog_field::set_value(s32 value)
 {
-	m_was_written = true;
-	m_prog_analog_value = value;
+	m_use_adjoverride = true;
+	m_adjoverride = std::clamp(value, m_adjmin, m_adjmax);
 }
+
+
+//-------------------------------------------------
+//  clear_value - clear programmatic override
+//-------------------------------------------------
+
+void analog_field::clear_value()
+{
+	m_use_adjoverride = false;
+	m_adjoverride = m_adjdefvalue;
+}
+
 
 //-------------------------------------------------
 //  frame_update - update the internals of a
@@ -3732,13 +3762,6 @@ void analog_field::frame_update(running_machine &machine)
 	// get the new raw analog value and its type
 	input_item_class itemclass;
 	s32 rawvalue = machine.input().seq_axis_value(m_field.seq(SEQ_TYPE_STANDARD), itemclass);
-
-	// use programmatically set value if available
-	if (m_was_written)
-	{
-		m_was_written = false;
-		rawvalue = m_prog_analog_value;
-	}
 
 	// if we got an absolute input, it overrides everything else
 	if (itemclass == ITEM_CLASS_ABSOLUTE)
@@ -3779,7 +3802,7 @@ void analog_field::frame_update(running_machine &machine)
 				// if port is positional, we will take the full analog control and divide it
 				// into positions, that way as the control is moved full scale,
 				// it moves through all the positions
-				rawvalue = apply_scale(rawvalue - INPUT_ABSOLUTE_MIN, m_positionalscale) * INPUT_RELATIVE_PER_PIXEL + m_minimum;
+				rawvalue = apply_scale(rawvalue - osd::INPUT_ABSOLUTE_MIN, m_positionalscale) * osd::INPUT_RELATIVE_PER_PIXEL + m_minimum;
 
 				// clamp the high value so it does not roll over
 				rawvalue = std::min(rawvalue, m_maximum);
@@ -3884,6 +3907,13 @@ void analog_field::read(ioport_value &result)
 	// do nothing if we're not enabled
 	if (!m_field.enabled())
 		return;
+
+	// if set programmatically, only use the override value
+	if (m_use_adjoverride)
+	{
+		result = m_adjoverride;
+		return;
+	}
 
 	// start with the raw value
 	s32 value = m_accum;

@@ -80,6 +80,18 @@ if _OPTIONS["vs"]=="intel-15" then
 			"/Qwd869",              -- remark #869: parameter "xxx" was never referenced
 		}
 end
+
+	configuration { "gmake or ninja" }
+if _OPTIONS["gcc"]~=nil then
+	if string.find(_OPTIONS["gcc"], "clang") or string.find(_OPTIONS["gcc"], "asmjs") or string.find(_OPTIONS["gcc"], "android") then
+
+	else
+		buildoptions_c {
+			"-Wno-maybe-uninitialized", -- expat in GCC 11.1
+		}
+	end
+end
+
 	configuration { }
 
 	files {
@@ -104,7 +116,7 @@ project "zlib"
 	kind "StaticLib"
 
 	local version = str_to_version(_OPTIONS["gcc_version"])
-	if _OPTIONS["gcc"]~=nil and ((string.find(_OPTIONS["gcc"], "clang") or string.find(_OPTIONS["gcc"], "asmjs") or string.find(_OPTIONS["gcc"], "android"))) then
+	if _OPTIONS["gcc"]~=nil and (string.find(_OPTIONS["gcc"], "clang") or string.find(_OPTIONS["gcc"], "asmjs") or string.find(_OPTIONS["gcc"], "android")) then
 		configuration { "gmake or ninja" }
 		if (version >= 30700) then
 			buildoptions {
@@ -961,17 +973,24 @@ project "sqlite3"
 	uuid "5cb3d495-57ed-461c-81e5-80dc0857517d"
 	kind "StaticLib"
 
-	configuration { "gmake" }
+	configuration { "gmake or ninja" }
 		buildoptions_c {
 			"-Wno-bad-function-cast",
 			"-Wno-discarded-qualifiers",
 			"-Wno-undef",
 			"-Wno-unused-but-set-variable",
 		}
-if _OPTIONS["gcc"]~=nil and ((string.find(_OPTIONS["gcc"], "clang") or string.find(_OPTIONS["gcc"], "asmjs") or string.find(_OPTIONS["gcc"], "android"))) then
+if _OPTIONS["gcc"]~=nil then
+	if string.find(_OPTIONS["gcc"], "clang") or string.find(_OPTIONS["gcc"], "asmjs") or string.find(_OPTIONS["gcc"], "android") then
 		buildoptions_c {
 			"-Wno-incompatible-pointer-types-discards-qualifiers",
 		}
+	else
+		buildoptions_c {
+			"-Wno-return-local-addr", -- sqlite3.c in GCC 10
+			"-Wno-misleading-indentation",  -- sqlite3.c in GCC 11.1
+		}
+	end
 end
 	configuration { "vs*" }
 if _OPTIONS["vs"]=="clangcl" then
@@ -1186,7 +1205,7 @@ project "bimg"
 			MAME_DIR .. "3rdparty/bx/include/compat/freebsd",
 		}
 
-	configuration { "gmake" }
+	configuration { "gmake or ninja" }
 		buildoptions {
 			"-Wno-unused-but-set-variable",
 		}
@@ -2214,6 +2233,13 @@ if not _OPTIONS["FORCE_DRC_C_BACKEND"] then
 project "asmjit"
 	uuid "4539757c-6e99-4bae-b3d0-b342a7c49539"
 	kind "StaticLib"
+
+	configuration { "gmake or ninja" }
+	if (_OPTIONS["gcc"] ~= nil) and (not string.find(_OPTIONS["gcc"], "clang")) and (str_to_version(_OPTIONS["gcc_version"]) < 80000) then
+		buildoptions {
+			"-Wno-maybe-uninitialized",
+		}
+	end
 
 	configuration { }
 

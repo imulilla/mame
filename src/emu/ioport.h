@@ -32,9 +32,6 @@
 //  CONSTANTS
 //**************************************************************************
 
-// input ports support up to 32 bits each
-typedef u32 ioport_value;
-
 // active high/low values for input ports
 constexpr ioport_value IP_ACTIVE_HIGH = 0x00000000;
 constexpr ioport_value IP_ACTIVE_LOW = 0xffffffff;
@@ -916,6 +913,7 @@ public:
 	u8 player() const { return m_player; }
 	bool digital_value() const { return m_digital_value; }
 	void set_value(ioport_value value);
+	void clear_value();
 
 	bool optional() const { return ((m_flags & FIELD_FLAG_OPTIONAL) != 0); }
 	bool cocktail() const { return ((m_flags & FIELD_FLAG_COCKTAIL) != 0); }
@@ -1152,8 +1150,9 @@ public:
 	float crosshair_read();
 	void frame_update(running_machine &machine);
 
-	// setters
+	// programmatic override (for script bindings)
 	void set_value(s32 value);
+	void clear_value();
 
 private:
 	// helpers
@@ -1170,6 +1169,7 @@ private:
 	s32                 m_adjdefvalue;          // adjusted default value from the config
 	s32                 m_adjmin;               // adjusted minimum value from the config
 	s32                 m_adjmax;               // adjusted maximum value from the config
+	s32                 m_adjoverride;          // programmatically set adjusted value
 
 	// live values of configurable parameters
 	s32                 m_sensitivity;          // current live sensitivity (100=normal)
@@ -1181,7 +1181,6 @@ private:
 	s32                 m_accum;                // accumulated value (including relative adjustments)
 	s32                 m_previous;             // previous adjusted value
 	s32                 m_previousanalog;       // previous analog value
-	s32                 m_prog_analog_value;    // programmatically set analog value
 
 	// parameters for modifying live values
 	s32                 m_minimum;              // minimum adjusted value
@@ -1203,7 +1202,7 @@ private:
 	bool                m_single_scale;         // scale joystick differently if default is between min/max
 	bool                m_interpolate;          // should we do linear interpolation for mid-frame reads?
 	bool                m_lastdigital;          // was the last modification caused by a digital form?
-	bool                m_was_written;          // was the last modification caused programmatically?
+	bool                m_use_adjoverride;      // override what will be read from the field
 };
 
 
