@@ -151,7 +151,7 @@ void _8080bw_state::invadpt2_sh_port_2_w(uint8_t data)
 /*                                                     */
 /* SNK "Ozma Wars"                                     */
 /* No schematic or manual could be found.              */
-/* Suspected of having a SN76577 for the enemy         */
+/* It has a SN76477 for the enemy                      */
 /* movement sounds, another for the enemy death        */
 /* sounds, and analog circuits for the shooting and    */
 /* explosion sounds.                                   */
@@ -206,12 +206,12 @@ void ozmawars_state::ozmawars_port04_w(uint8_t data)
 	{
 		if (data == 0x01) m_samples->start(4, 13, 1);    // stage with wheels
 		if (data == 0x15) m_samples->start(4, 10, 1);    // stage with invaders
-		if (data == 0x17) m_samples->start(4, 9);        // meteor hit
+		if (data == 0x17) m_samples->start(3, 9);        // meteor hit
 		if (data == 0x1f) m_samples->start(4, 14, 1);    // meteor stage
-		//if (data == 0x35) m_samples->start(4, 12, 1);    // 
-		//if (data == 0x3f) m_samples->start(4, 11, 1);    // 
+		//if (data == 0x35) m_samples->start(4, 12, 1);    //
+		//if (data == 0x3f) m_samples->start(4, 11, 1);    //
 	}
-	if (data == 0) m_samples->stop(4);    // 
+	if (data == 0) m_samples->stop(4);    //
 }
 
 void ozmawars_state::ozmawars_port05_w(uint8_t data)
@@ -1062,7 +1062,7 @@ void _8080bw_state::schaser_sh_port_1_w(uint8_t data)
 			/* disable effect - stops at end of low cycle */
 			if (!m_schaser_effect_555_is_low)
 			{
-				m_schaser_effect_555_time_remain = m_schaser_effect_555_timer->time_left();
+				m_schaser_effect_555_time_remain = m_schaser_effect_555_timer->remaining();
 				m_schaser_effect_555_time_remain_savable = m_schaser_effect_555_time_remain.as_double();
 				m_schaser_effect_555_timer->adjust(attotime::never);
 			}
@@ -1581,7 +1581,7 @@ void cane_audio_device::sh_port_1_w(u8 data)
 	m_sn->set_mixer_params(BIT(data, 2), BIT(data, 3), BIT(data, 1));
 
 	m_vco_timer->adjust(attotime::zero, m_vco_timer->param(), attotime::from_hz(1000));
-	m_vco_rc_chargetime = m_vco_timer->start_time();
+	m_vco_rc_chargetime = m_vco_timer->start();
 
 	// Little hack...
 	// To be precise I should enable the 76477 every time the CPU reads or write to a port different from port 3
@@ -1729,7 +1729,7 @@ DISCRETE_SOUND_END
 
 TIMER_DEVICE_CALLBACK_MEMBER(cane_audio_device::vco_voltage_timer)
 {
-	const double delta = (m_vco_timer->fire_time() - m_vco_rc_chargetime).as_double();
+	const double delta = (m_vco_timer->expire() - m_vco_rc_chargetime).as_double();
 	const double voltage = 5 * (1 - std::exp(-delta / 47));
 
 	LOG("t = %d\n", delta);
