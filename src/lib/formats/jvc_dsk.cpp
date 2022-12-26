@@ -105,8 +105,10 @@
 ***************************************************************************/
 
 #include "jvc_dsk.h"
+
 #include "ioprocs.h"
-#include "imageutl.h"
+
+#include "osdcore.h" // osd_printf_*
 
 
 jvc_format::jvc_format()
@@ -133,7 +135,7 @@ bool jvc_format::parse_header(util::random_read &io, int &header_size, int &trac
 	// The JVC format has a header whose size is the size of the image modulo 256.  Currently, we only
 	// handle up to five header bytes
 	uint64_t size;
-	if (io.length(size))
+	if (io.length(size) || !size)
 		return false;
 	header_size = size % 256;
 	uint8_t header[5];
@@ -154,7 +156,7 @@ bool jvc_format::parse_header(util::random_read &io, int &header_size, int &trac
 	switch (header_size)
 	{
 	case 5:
-		LOG_FORMATS("jvc_format: sector attribute flag unsupported\n");
+		osd_printf_info("jvc_format: sector attribute flag unsupported\n");
 		return false;
 	case 4: base_sector_id = header[3];
 		[[fallthrough]];
@@ -168,18 +170,18 @@ bool jvc_format::parse_header(util::random_read &io, int &header_size, int &trac
 		break;
 	}
 
-	LOG_FORMATS("jvc_format: Floppy disk image geometry: %d tracks, %d head(s), %d sectors with %d bytes.\n", tracks, heads, sectors, sector_size);
+	osd_printf_verbose("jvc_format: Floppy disk image geometry: %d tracks, %d head(s), %d sectors with %d bytes.\n", tracks, heads, sectors, sector_size);
 
 	return tracks * heads * sectors * sector_size == (size - header_size);
 }
 
-int jvc_format::identify(util::random_read &io, uint32_t form_factor, const std::vector<uint32_t> &variants)
+int jvc_format::identify(util::random_read &io, uint32_t form_factor, const std::vector<uint32_t> &variants) const
 {
 	int header_size, tracks, heads, sectors, sector_size, sector_base_id;
-	return parse_header(io, header_size, tracks, heads, sectors, sector_size, sector_base_id) ? 50 : 0;
+	return parse_header(io, header_size, tracks, heads, sectors, sector_size, sector_base_id) ? FIFID_STRUCT|FIFID_SIZE : 0;
 }
 
-bool jvc_format::load(util::random_read &io, uint32_t form_factor, const std::vector<uint32_t> &variants, floppy_image *image)
+bool jvc_format::load(util::random_read &io, uint32_t form_factor, const std::vector<uint32_t> &variants, floppy_image *image) const
 {
 	int header_size, track_count, head_count, sector_count, sector_size, sector_base_id;
 	int max_tracks, max_heads;
@@ -190,7 +192,7 @@ bool jvc_format::load(util::random_read &io, uint32_t form_factor, const std::ve
 	// safety check
 	if (sector_count * sector_size > 10000)
 	{
-		LOG_FORMATS("jvc_format: incorrect track layout\n");
+		osd_printf_error("jvc_format: incorrect track layout\n");
 		return false;
 	}
 
@@ -198,13 +200,13 @@ bool jvc_format::load(util::random_read &io, uint32_t form_factor, const std::ve
 
 	if (track_count > max_tracks)
 	{
-		LOG_FORMATS("jvc_format: Floppy disk has too many tracks for this drive (floppy tracks=%d, drive tracks=%d).\n", track_count, max_tracks);
+		osd_printf_error("jvc_format: Floppy disk has too many tracks for this drive (floppy tracks=%d, drive tracks=%d).\n", track_count, max_tracks);
 		return false;
 	}
 
 	if (head_count > max_heads)
 	{
-		LOG_FORMATS("jvc_format: Floppy disk has too many sides for this drive (floppy sides=%d, drive sides=%d).\n", head_count, max_heads);
+		osd_printf_error("jvc_format: Floppy disk has too many sides for this drive (floppy sides=%d, drive sides=%d).\n", head_count, max_heads);
 		return false;
 	}
 
@@ -244,7 +246,7 @@ bool jvc_format::load(util::random_read &io, uint32_t form_factor, const std::ve
 	return true;
 }
 
-bool jvc_format::save(util::random_read_write &io, const std::vector<uint32_t> &variants, floppy_image *image)
+bool jvc_format::save(util::random_read_write &io, const std::vector<uint32_t> &variants, floppy_image *image) const
 {
 	uint64_t file_offset = 0;
 
@@ -274,7 +276,7 @@ bool jvc_format::save(util::random_read_write &io, const std::vector<uint32_t> &
 			{
 				if (sectors[1 + i].size() != 256)
 				{
-					LOG_FORMATS("jvc_format: invalid sector size: %d\n", sectors[1 + i].size());
+					osd_printf_error("jvc_format: invalid sector size: %d\n", sectors[1 + i].size());
 					return false;
 				}
 
@@ -293,4 +295,4 @@ bool jvc_format::supports_save() const
 	return true;
 }
 
-const floppy_format_type FLOPPY_JVC_FORMAT = &floppy_image_format_creator<jvc_format>;
+const jvc_format FLOPPY_JVC_FORMAT;

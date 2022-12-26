@@ -38,7 +38,6 @@
 #include "profiler.h"
 
 // commonly-referenced utilities imported from lib/util
-#include "corealloc.h"
 #include "corefile.h"
 #include "delegate.h"
 #include "hash.h"
@@ -73,7 +72,6 @@
 #include "divideo.h"
 #include "dinvram.h"
 #include "schedule.h"
-#include "dinetwork.h"
 
 // machine and driver configuration
 #include "mconfig.h"

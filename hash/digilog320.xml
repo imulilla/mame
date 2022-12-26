@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <!DOCTYPE softwarelist SYSTEM "softwarelist.dtd">
 
-<!-- license:CC0 -->
+<!-- license:CC0-1.0 -->
 
 <softwarelist name="digilog320" description="Digilog 320 Disks">
 
@@ -35,7 +35,7 @@
 	STEP 4: Return to FUNC. MENU, set power up to AUTOEXEC.
 	-->
 	<software name="320ezr">
-		<description>320 E-Z Menu (Restored)</description>
+		<description>320 E-Z Menu (restored)</description>
 		<year>198?</year>
 		<publisher>Digilog</publisher>
 		<info name="pn" value="24-0199-01 REV A" />

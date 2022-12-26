@@ -11,6 +11,7 @@
 #ifndef MAME_DEVICES_IMAGEDEV_HARDDRIV_H
 #define MAME_DEVICES_IMAGEDEV_HARDDRIV_H
 
+#include "chd.h"
 #include "harddisk.h"
 #include "softlist_dev.h"
 
@@ -65,7 +66,6 @@ public:
 
 	// specific implementation
 	hard_disk_file *get_hard_disk_file() { return m_hard_disk_handle; }
-	chd_file *get_chd_file();
 
 protected:
 	harddisk_image_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock);
