@@ -117,6 +117,8 @@ private:
 	required_device<ttl74123_device> m_ic8j2;
 
 	gfx_element *       m_back_gfx = nullptr;
+	int                 m_back_color[4];
+	int                 m_back_xpos[4];
 	uint8_t             m_bottomline = 0U;
 
 	void m10_ctrl_w(uint8_t data);
