@@ -58,6 +58,9 @@ http://www.tilt.it/deb/i-midcoin.html
 #include "machine/i8255.h"
 #include "24cdjuke.lh"
 
+
+namespace {
+
 class midcoin24cdjuke_state : public driver_device
 {
 public:
@@ -306,7 +309,7 @@ void midcoin24cdjuke_state::midcoin24cdjuke(machine_config &config)
 	ic25.out_pc_callback().set(FUNC(midcoin24cdjuke_state::kb_col_w));
 
 	i8255_device &ic31(I8255A(config, "ic31", 0));
-	ic31.out_pb_callback().set_log("PPI8255 - unmapped write port B");
+	ic31.out_pb_callback().set([this](uint8_t data) { logerror("%s ic31 write port B: %02X\n", machine().describe_context(), data); });
 	ic31.in_pc_callback().set_ioport("MD4");
 }
 
@@ -324,6 +327,8 @@ ROM_START( 24cdjuke )
 	ROM_LOAD( "m1-7611a-5.ic27", 0x000, 0x100, CRC(29b068e8) SHA1(477e2445c58b7d14c56a3ad4050eb22474d56005) )
 	ROM_LOAD( "m1-7611a-5.ic28", 0x000, 0x100, CRC(29b068e8) SHA1(477e2445c58b7d14c56a3ad4050eb22474d56005) )
 ROM_END
+
+} // anonymous namespace
 
 
 GAME( 1988, 24cdjuke, 0, midcoin24cdjuke, midcoin24cdjuke, midcoin24cdjuke_state, empty_init, ROT0, "Midcoin", "Midcoin Juke Box 24CD", MACHINE_NO_SOUND | MACHINE_NOT_WORKING ) // what name was it sold under? name is from the PCB text

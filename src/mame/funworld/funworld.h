@@ -1,7 +1,7 @@
 // license:BSD-3-Clause
 // copyright-holders:Roberto Fresca, Peter Ferrie
-#ifndef MAME_INCLUDES_FUNWORLD_H
-#define MAME_INCLUDES_FUNWORLD_H
+#ifndef MAME_FUNWORLD_FUNWORLD_H
+#define MAME_FUNWORLD_FUNWORLD_H
 
 #pragma once
 
@@ -68,7 +68,7 @@ protected:
 private:
 	uint8_t questions_r(offs_t offset);
 	void question_bank_w(uint8_t data);
-	DECLARE_WRITE_LINE_MEMBER(pia1_ca2_w);
+	void pia1_ca2_w(int state);
 	uint8_t funquiz_ay8910_a_r();
 	uint8_t funquiz_ay8910_b_r();
 
@@ -206,4 +206,4 @@ private:
 	bool m_crtc_selected;
 };
 
-#endif // MAME_INCLUDES_FUNWORLD_H
+#endif // MAME_FUNWORLD_FUNWORLD_H

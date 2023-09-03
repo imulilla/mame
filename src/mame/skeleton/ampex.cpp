@@ -23,6 +23,9 @@ the PCB, which go so far as to include the standard 8224 clock generator.
 #include "video/tms9927.h"
 #include "screen.h"
 
+
+namespace {
+
 #define AMPEX_CH_WIDTH 7
 
 class ampex_state : public driver_device
@@ -55,9 +58,9 @@ private:
 	u8 page_r(offs_t offset);
 	void page_w(offs_t offset, u8 data);
 
-	DECLARE_WRITE_LINE_MEMBER(vsyn_w);
-	DECLARE_WRITE_LINE_MEMBER(so_w);
-	DECLARE_WRITE_LINE_MEMBER(dav_w);
+	void vsyn_w(int state);
+	void so_w(int state);
+	void dav_w(int state);
 
 	void mem_map(address_map &map);
 
@@ -151,18 +154,18 @@ void ampex_state::page_w(offs_t offset, u8 data)
 	m_paged_ram[m_page * 0x1800 + offset] = data | m_attr << 8;
 }
 
-WRITE_LINE_MEMBER(ampex_state::vsyn_w)
+void ampex_state::vsyn_w(int state)
 {
 	// should generate RST 6 interrupt
 }
 
-WRITE_LINE_MEMBER(ampex_state::so_w)
+void ampex_state::so_w(int state)
 {
 	if (m_uart_loopback)
 		m_uart->write_si(state);
 }
 
-WRITE_LINE_MEMBER(ampex_state::dav_w)
+void ampex_state::dav_w(int state)
 {
 	// DAV should generate RST 7
 }
@@ -398,5 +401,8 @@ ROM_START( dialog80 )
 	ROM_LOAD( "417129-010.u16",  0x0000, 0x0100, NO_DUMP )
 	ROM_LOAD( "417129-010.u87",  0x0100, 0x0100, NO_DUMP )
 ROM_END
+
+} // anonymous namespace
+
 
 COMP( 1980, dialog80, 0, 0, ampex, ampex, ampex_state, empty_init, "Ampex", "Dialogue 80", MACHINE_IS_SKELETON )

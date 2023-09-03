@@ -723,6 +723,14 @@ void armchamp2_state::armchmp2_map(address_map &map)
 #define RIGHT 0
 #define LEFT  1
 
+void captflag_state::machine_start()
+{
+	cischeat_state::machine_start();
+
+	m_motor_left_output.resolve();
+	m_motor_right_output.resolve();
+}
+
 void captflag_state::leds_w(offs_t offset, uint16_t data, uint16_t mem_mask)
 {
 	COMBINE_DATA( &m_captflag_leds );
@@ -824,7 +832,7 @@ void captflag_state::motor_move(int side, uint16_t data)
 		dev.reset();
 	}
 
-	output().set_value((side == RIGHT) ? "right" : "left", pos);
+	((side == RIGHT) ? m_motor_right_output : m_motor_left_output) = pos;
 }
 
 template <int N>
@@ -835,7 +843,7 @@ CUSTOM_INPUT_MEMBER(captflag_state::motor_pos_r)
 }
 
 template <int N>
-READ_LINE_MEMBER(captflag_state::motor_busy_r)
+int captflag_state::motor_busy_r()
 {
 //  timer_device & dev = ((side == RIGHT) ? m_motor_right : m_motor_left);
 //  return (dev.remaining() == attotime::never) ? 0 : 1;
@@ -2060,7 +2068,7 @@ TIMER_DEVICE_CALLBACK_MEMBER(cischeat_state::bigrun_scanline)
 		m_cpu1->set_input_line(2, HOLD_LINE);
 }
 
-WRITE_LINE_MEMBER(cischeat_state::sound_irq)
+void cischeat_state::sound_irq(int state)
 {
 	if(state)
 		m_soundcpu->set_input_line(4, HOLD_LINE);
@@ -4030,13 +4038,13 @@ void captflag_state::init_captflag()
 /***************************************************************************
 
                          Vs. Super Captain Flag
- 
+
  PCB IDs:
 
  CF-93153 EB93041-20091
- 
+
  CF-92128B EB92027-20060
- 
+
  GP-9189 EB90015-20038
 
 **************************************************************************/
@@ -4094,7 +4102,7 @@ ROM_END
 void captflag_state::init_vscaptfl()
 {
 	address_space &space = m_maincpu->space(AS_PROGRAM);
-	
+
 	space.unmap_readwrite(0x100044, 0x100045);
 	space.unmap_readwrite(0x100048, 0x100049);
 

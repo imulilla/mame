@@ -53,7 +53,7 @@ void nubus_slot_device::device_resolve_objects()
 	if (dev)
 	{
 		dev->set_nubus_tag(m_nubus.target(), m_nubus_slottag);
-		m_nubus->add_nubus_card(dev);
+		m_nubus->add_nubus_card(*dev);
 	}
 }
 
@@ -96,21 +96,8 @@ nubus_device::nubus_device(const machine_config &mconfig, device_type type, cons
 {
 }
 
-//-------------------------------------------------
-//  device_resolve_objects - resolve objects that
-//  may be needed for other devices to set
-//  initial conditions at start time
-//-------------------------------------------------
-
-void nubus_device::device_resolve_objects()
+nubus_device::~nubus_device()
 {
-	// resolve callbacks
-	m_out_irq9_cb.resolve_safe();
-	m_out_irqa_cb.resolve_safe();
-	m_out_irqb_cb.resolve_safe();
-	m_out_irqc_cb.resolve_safe();
-	m_out_irqd_cb.resolve_safe();
-	m_out_irqe_cb.resolve_safe();
 }
 
 //-------------------------------------------------
@@ -121,9 +108,9 @@ void nubus_device::device_start()
 {
 }
 
-void nubus_device::add_nubus_card(device_nubus_card_interface *card)
+void nubus_device::add_nubus_card(device_nubus_card_interface &card)
 {
-	m_device_list.append(*card);
+	m_device_list.emplace_back(card);
 }
 
 template <typename R, typename W>
@@ -242,12 +229,12 @@ void nubus_device::set_irq_line(int slot, int state)
 }
 
 // interrupt request from nubus card
-WRITE_LINE_MEMBER( nubus_device::irq9_w ) { m_out_irq9_cb(state); }
-WRITE_LINE_MEMBER( nubus_device::irqa_w ) { m_out_irqa_cb(state); }
-WRITE_LINE_MEMBER( nubus_device::irqb_w ) { m_out_irqb_cb(state); }
-WRITE_LINE_MEMBER( nubus_device::irqc_w ) { m_out_irqc_cb(state); }
-WRITE_LINE_MEMBER( nubus_device::irqd_w ) { m_out_irqd_cb(state); }
-WRITE_LINE_MEMBER( nubus_device::irqe_w ) { m_out_irqe_cb(state); }
+void nubus_device::irq9_w(int state) { m_out_irq9_cb(state); }
+void nubus_device::irqa_w(int state) { m_out_irqa_cb(state); }
+void nubus_device::irqb_w(int state) { m_out_irqb_cb(state); }
+void nubus_device::irqc_w(int state) { m_out_irqc_cb(state); }
+void nubus_device::irqd_w(int state) { m_out_irqd_cb(state); }
+void nubus_device::irqe_w(int state) { m_out_irqe_cb(state); }
 
 //**************************************************************************
 //  DEVICE CONFIG NUBUS CARD INTERFACE
@@ -262,10 +249,11 @@ WRITE_LINE_MEMBER( nubus_device::irqe_w ) { m_out_irqe_cb(state); }
 //  device_nubus_card_interface - constructor
 //-------------------------------------------------
 
-device_nubus_card_interface::device_nubus_card_interface(const machine_config &mconfig, device_t &device)
-	: device_interface(device, "nubus"),
-		m_nubus(nullptr),
-		m_nubus_slottag(nullptr), m_slot(0), m_next(nullptr)
+device_nubus_card_interface::device_nubus_card_interface(const machine_config &mconfig, device_t &device) :
+	device_interface(device, "nubus"),
+	m_nubus(nullptr),
+	m_nubus_slottag(nullptr),
+	m_slot(0)
 {
 }
 

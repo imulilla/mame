@@ -8,8 +8,8 @@
 
 ***************************************************************************/
 
-#ifndef MAME_INCLUDES_COCO12_H
-#define MAME_INCLUDES_COCO12_H
+#ifndef MAME_TRS_COCO12_H
+#define MAME_TRS_COCO12_H
 
 #pragma once
 
@@ -48,15 +48,11 @@ public:
 
 	uint8_t sam_read(offs_t offset);
 
-	DECLARE_WRITE_LINE_MEMBER( horizontal_sync );
-	DECLARE_WRITE_LINE_MEMBER( field_sync );
+	void horizontal_sync(int state);
+	void field_sync(int state);
 
 	void coco(machine_config &config);
 	void cocoh(machine_config &config);
-	void cocoe(machine_config &config);
-	void cocoeh(machine_config &config);
-	void coco2(machine_config &config);
-	void coco2h(machine_config &config);
 	void coco2b(machine_config &config);
 	void coco2bh(machine_config &config);
 	void cp400(machine_config &config);
@@ -109,4 +105,4 @@ protected:
 	required_device<ay8913_device> m_psg;
 };
 
-#endif // MAME_INCLUDES_COCO12_H
+#endif // MAME_TRS_COCO12_H

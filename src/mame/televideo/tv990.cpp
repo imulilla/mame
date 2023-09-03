@@ -42,6 +42,8 @@
 #include "speaker.h"
 
 
+namespace {
+
 #define RS232A_TAG      "rs232a"
 #define RS232B_TAG      "rs232b"
 #define LPT_TAG         "lpt"
@@ -82,10 +84,10 @@ private:
 	uint8_t kbdc_r(offs_t offset);
 	void kbdc_w(offs_t offset, uint8_t data);
 
-	DECLARE_WRITE_LINE_MEMBER(uart0_irq);
-	DECLARE_WRITE_LINE_MEMBER(uart1_irq);
-	DECLARE_WRITE_LINE_MEMBER(lpt_irq);
-	DECLARE_WRITE_LINE_MEMBER(vblank_irq);
+	void uart0_irq(int state);
+	void uart1_irq(int state);
+	void lpt_irq(int state);
+	void vblank_irq(int state);
 
 	required_device<m68000_device> m_maincpu;
 	required_shared_ptr<uint16_t> m_vram;
@@ -103,7 +105,7 @@ private:
 	int m_height = 0;
 };
 
-WRITE_LINE_MEMBER(tv990_state::vblank_irq)
+void tv990_state::vblank_irq(int state)
 {
 	if (state)
 	{
@@ -130,17 +132,17 @@ TIMER_CALLBACK_MEMBER(tv990_state::trigger_row_irq)
 	m_screen->update_now();
 }
 
-WRITE_LINE_MEMBER(tv990_state::uart0_irq)
+void tv990_state::uart0_irq(int state)
 {
 	m_maincpu->set_input_line(M68K_IRQ_5, state);
 }
 
-WRITE_LINE_MEMBER(tv990_state::uart1_irq)
+void tv990_state::uart1_irq(int state)
 {
 	m_maincpu->set_input_line(M68K_IRQ_4, state);
 }
 
-WRITE_LINE_MEMBER(tv990_state::lpt_irq)
+void tv990_state::lpt_irq(int state)
 {
 	m_maincpu->set_input_line(M68K_IRQ_3, state);
 }
@@ -434,6 +436,9 @@ ROM_START( tv995 )
 	ROM_LOAD16_BYTE( "995-65_u3.bin", 0x000000, 0x020000, CRC(2d71b6fe) SHA1(a2a3406c19308eb9232db319ea8f151949b2ac74) )
 	ROM_LOAD16_BYTE( "995-65_u4.bin", 0x000001, 0x020000, CRC(dc002af2) SHA1(9608e7a729c5ac0fc58f673eaf441d2f4f591ec6) )
 ROM_END
+
+} // anonymous namespace
+
 
 /* Driver */
 COMP( 1992, tv990, 0, 0, tv990, tv990, tv990_state, empty_init, "TeleVideo", "TeleVideo 990",    MACHINE_SUPPORTS_SAVE )

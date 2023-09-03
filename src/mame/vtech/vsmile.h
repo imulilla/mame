@@ -17,8 +17,8 @@
 
 *******************************************************************************/
 
-#ifndef MAME_INCLUDES_VSMILE_H
-#define MAME_INCLUDES_VSMILE_H
+#ifndef MAME_VTECH_VSMILE_H
+#define MAME_VTECH_VSMILE_H
 
 #include "bus/vsmile/vsmile_ctrl.h"
 #include "bus/vsmile/vsmile_slot.h"
@@ -85,7 +85,7 @@ private:
 	void banked_map(address_map &map);
 
 	void ctrl_tx_w(uint8_t data);
-	template <int Which> DECLARE_WRITE_LINE_MEMBER(ctrl_rts_w);
+	template <int Which> void ctrl_rts_w(int state);
 
 	uint16_t portb_r();
 	void portb_w(offs_t offset, uint16_t data, uint16_t mem_mask = ~0);
@@ -181,4 +181,4 @@ private:
 	uint16_t m_mode = 0;
 };
 
-#endif // MAME_INCLUDES_VSMILE_H
+#endif // MAME_VTECH_VSMILE_H

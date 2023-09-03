@@ -1,7 +1,7 @@
 // license:BSD-3-Clause
 // copyright-holders:David Haywood, Roberto Fresca, Vas Crabb
-#ifndef MAME_INCLUDES_GOLDSTAR_H
-#define MAME_INCLUDES_GOLDSTAR_H
+#ifndef MAME_IGS_GOLDSTAR_H
+#define MAME_IGS_GOLDSTAR_H
 
 #pragma once
 
@@ -258,7 +258,7 @@ public:
 	uint32_t screen_update_magical(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	uint32_t screen_update_mbstar(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 
-	DECLARE_WRITE_LINE_MEMBER(masked_irq);
+	void masked_irq(int state);
 
 	void bingowng(machine_config &config);
 	void flaming7(machine_config &config);
@@ -400,7 +400,7 @@ public:
 	DECLARE_VIDEO_START(unkch);
 	uint32_t screen_update_unkch(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 
-	DECLARE_WRITE_LINE_MEMBER(vblank_irq);
+	void vblank_irq(int state);
 
 	void megaline(machine_config &config);
 	void unkch(machine_config &config);
@@ -427,4 +427,4 @@ private:
 	optional_device<ticket_dispenser_device> m_ticket_dispenser;
 };
 
-#endif // MAME_INCLUDES_GOLDSTAR_H
+#endif // MAME_IGS_GOLDSTAR_H

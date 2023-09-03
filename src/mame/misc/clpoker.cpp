@@ -40,6 +40,8 @@ There also are unpopulated locations that might fit a YM3812 and YM3014.
 #include "tilemap.h"
 
 
+namespace {
+
 class clpoker_state : public driver_device
 {
 public:
@@ -63,7 +65,7 @@ private:
 	void output_c_w(u8 data);
 
 	void videoram_w(offs_t offset, u8 data);
-	DECLARE_WRITE_LINE_MEMBER(vblank_w);
+	void vblank_w(int state);
 
 	u32 screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 
@@ -228,7 +230,7 @@ void clpoker_state::video_start()
 	save_item(NAME(m_nmi_enable));
 }
 
-WRITE_LINE_MEMBER(clpoker_state::vblank_w)
+void clpoker_state::vblank_w(int state)
 {
 	if (m_nmi_enable)
 		m_maincpu->set_input_line(INPUT_LINE_NMI, state);
@@ -309,6 +311,8 @@ ROM_START( clpoker )
 	ROM_LOAD( "mach110-20jc.pl4",  0x00, 0x200,  NO_DUMP )
 	ROM_LOAD( "gal20v8a.pl5",      0x00, 0x157,  NO_DUMP )
 ROM_END
+
+} // anonymous namespace
 
 
 GAME( 1994, clpoker, 0, clpoker, clpoker, clpoker_state, empty_init, ROT0, "Chain Leisure", "Poker Genius", MACHINE_SUPPORTS_SAVE ) // Year taken from string in main CPU ROM

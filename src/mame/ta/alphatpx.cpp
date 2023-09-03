@@ -82,6 +82,8 @@
 #include "debugger.h"
 
 
+namespace {
+
 //**************************************************************************
 //  TYPE DEFINITIONS - Alphatronic P1, P2, P2S, P2U and Hell 2069
 //**************************************************************************
@@ -114,7 +116,7 @@ private:
 
 	u32 screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 
-	DECLARE_READ_LINE_MEMBER(kbd_matrix_r);
+	int kbd_matrix_r();
 	void kbd_matrix_w(u8 data);
 	u8 kbd_port2_r();
 	void kbd_port2_w(u8 data);
@@ -124,9 +126,9 @@ private:
 	u8 fdc_stat_r();
 	void fdc_cmd_w(u8 data);
 
-	DECLARE_WRITE_LINE_MEMBER(fdcirq_w);
-	DECLARE_WRITE_LINE_MEMBER(fdcdrq_w);
-	DECLARE_WRITE_LINE_MEMBER(fdchld_w);
+	void fdcirq_w(int state);
+	void fdcdrq_w(int state);
+	void fdchld_w(int state);
 	void beep_w(u8 data);
 	void bank_w(u8 data);
 
@@ -186,7 +188,7 @@ private:
 
 	u32 screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 
-	DECLARE_READ_LINE_MEMBER(kbd_matrix_r);
+	int kbd_matrix_r();
 	void kbd_matrix_w(u8 data);
 	u8 kbd_port2_r();
 	void kbd_port2_w(u8 data);
@@ -196,9 +198,9 @@ private:
 	u8 fdc_stat_r();
 	void fdc_cmd_w(u8 data);
 
-	DECLARE_WRITE_LINE_MEMBER(fdcirq_w);
-	DECLARE_WRITE_LINE_MEMBER(fdcdrq_w);
-	DECLARE_WRITE_LINE_MEMBER(fdchld_w);
+	void fdcirq_w(int state);
+	void fdcdrq_w(int state);
+	void fdchld_w(int state);
 	void beep_w(u8 data);
 	void bank_w(u8 data);
 	u8 start88_r(offs_t offset);
@@ -464,7 +466,7 @@ void alphatp_34_state::gfxext_w(offs_t offset, u8 data)
 //  INPUTS -  Alphatronic P1, P2, P2S, P2U and Hell 2069
 //**************************************************************************
 
-READ_LINE_MEMBER(alphatp_12_state::kbd_matrix_r)
+int alphatp_12_state::kbd_matrix_r()
 {
 	return m_kbdread;
 }
@@ -497,7 +499,7 @@ u8 alphatp_12_state::kbd_port2_r()
 //  INPUTS - Alphatronic P3, P4, P30 and P40
 //**************************************************************************
 
-READ_LINE_MEMBER(alphatp_34_state::kbd_matrix_r)
+int alphatp_34_state::kbd_matrix_r()
 {
 	return m_kbdread;
 }
@@ -1011,17 +1013,17 @@ void alphatp_34_state::beep_w(u8 data)
 //  FLOPPY - Alphatronic P1, P2, P2S, P2U and Hell 2069
 //**************************************************************************
 
-WRITE_LINE_MEMBER(alphatp_12_state::fdcirq_w)
+void alphatp_12_state::fdcirq_w(int state)
 {
 	m_fdc_irq = state;
 }
 
-WRITE_LINE_MEMBER(alphatp_12_state::fdcdrq_w)
+void alphatp_12_state::fdcdrq_w(int state)
 {
 	m_fdc_drq = state;
 }
 
-WRITE_LINE_MEMBER(alphatp_12_state::fdchld_w)
+void alphatp_12_state::fdchld_w(int state)
 {
 	m_fdc_hld = state;
 }
@@ -1094,17 +1096,17 @@ void alphatp_12_state::fdc_cmd_w(u8 data)
 //  FLOPPY - Alphatronic P3, P4, P30 and P40
 //**************************************************************************
 
-WRITE_LINE_MEMBER(alphatp_34_state::fdcirq_w)
+void alphatp_34_state::fdcirq_w(int state)
 {
 	m_fdc_irq = state;
 }
 
-WRITE_LINE_MEMBER(alphatp_34_state::fdcdrq_w)
+void alphatp_34_state::fdcdrq_w(int state)
 {
 	m_fdc_drq = state;
 }
 
-WRITE_LINE_MEMBER(alphatp_34_state::fdchld_w)
+void alphatp_34_state::fdchld_w(int state)
 {
 	m_fdc_hld = state;
 }
@@ -1438,6 +1440,8 @@ ROM_START( alphatp30 ) // P30 add-on card with 8088 needs to be emulated to boot
 	ROM_REGION(0x4000, "16bit", 0)
 	ROM_LOAD("caxp_02_02_13.bin", 0x00000, 0x2000, CRC(e6bf6dd5) SHA1(dc87210bbcd96f3c1370565174a45199e3c1bc70)) // P30 ROM from 8088 card
 ROM_END
+
+} // anonymous namespace
 
 
 //**************************************************************************

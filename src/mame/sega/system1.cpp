@@ -308,7 +308,6 @@ seem to have access to.
 
 #include "machine/segacrpt_device.h"
 #include "cpu/z80/mc8123.h"
-#include "sound/sn76496.h"
 
 #include "speaker.h"
 
@@ -322,135 +321,6 @@ seem to have access to.
  *  Machine initialization
  *
  *************************************/
-
-/*
-    About main CPU clocking:
-
-    A 20MHz crystal clocks an LS161 which counts up from either 10 or 11 to 16 before
-    carrying out and forcing a reload. The low bit of the reload value comes from the
-    Z80's /M1 signal. When /M1 is low (an opcode is being fetched), the reload count
-    is 10, which means the 20MHz clock is divided by 6. When /M1 is high, the reload
-    count is 11, which means the clock is divided by 5.
-
-    To account for this, we install custom cycle tables for the Z80. We clock the Z80
-    at 20MHz and count 5 cycles for each original Z80 cycle, plus an extra 2 cycles for
-    each opcode fetch (since the M1 line is low for 2 cycles per byte).
-*/
-
-static const u8 cc_op[0x100] = {
-	4*5+1*2,10*5+3*2, 7*5+1*2, 6*5+1*2, 4*5+1*2, 4*5+1*2, 7*5+2*2, 4*5+1*2, 4*5+1*2,11*5+1*2, 7*5+1*2, 6*5+1*2, 4*5+1*2, 4*5+1*2, 7*5+2*2, 4*5+1*2,
-	8*5+2*2,10*5+3*2, 7*5+1*2, 6*5+1*2, 4*5+1*2, 4*5+1*2, 7*5+2*2, 4*5+1*2,12*5+2*2,11*5+1*2, 7*5+1*2, 6*5+1*2, 4*5+1*2, 4*5+1*2, 7*5+2*2, 4*5+1*2,
-	7*5+2*2,10*5+3*2,16*5+3*2, 6*5+1*2, 4*5+1*2, 4*5+1*2, 7*5+2*2, 4*5+1*2, 7*5+2*2,11*5+1*2,16*5+3*2, 6*5+1*2, 4*5+1*2, 4*5+1*2, 7*5+2*2, 4*5+1*2,
-	7*5+2*2,10*5+3*2,13*5+3*2, 6*5+1*2,11*5+1*2,11*5+1*2,10*5+2*2, 4*5+1*2, 7*5+2*2,11*5+1*2,13*5+3*2, 6*5+1*2, 4*5+1*2, 4*5+1*2, 7*5+2*2, 4*5+1*2,
-	4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 7*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 7*5+1*2, 4*5+1*2,
-	4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 7*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 7*5+1*2, 4*5+1*2,
-	4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 7*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 7*5+1*2, 4*5+1*2,
-	7*5+1*2, 7*5+1*2, 7*5+1*2, 7*5+1*2, 7*5+1*2, 7*5+1*2, 4*5+1*2, 7*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 7*5+1*2, 4*5+1*2,
-	4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 7*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 7*5+1*2, 4*5+1*2,
-	4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 7*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 7*5+1*2, 4*5+1*2,
-	4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 7*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 7*5+1*2, 4*5+1*2,
-	4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 7*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 7*5+1*2, 4*5+1*2,
-	5*5+1*2,10*5+1*2,10*5+3*2,10*5+3*2,10*5+3*2,11*5+1*2, 7*5+2*2,11*5+1*2, 5*5+1*2,10*5+1*2,10*5+3*2, 4*5+1*2,10*5+3*2,17*5+3*2, 7*5+2*2,11*5+1*2,
-	5*5+1*2,10*5+1*2,10*5+3*2,11*5+2*2,10*5+3*2,11*5+1*2, 7*5+2*2,11*5+1*2, 5*5+1*2, 4*5+1*2,10*5+3*2,11*5+2*2,10*5+3*2, 4*5+1*2, 7*5+2*2,11*5+1*2,
-	5*5+1*2,10*5+1*2,10*5+3*2,19*5+1*2,10*5+3*2,11*5+1*2, 7*5+2*2,11*5+1*2, 5*5+1*2, 4*5+1*2,10*5+3*2, 4*5+1*2,10*5+3*2, 4*5+1*2, 7*5+2*2,11*5+1*2,
-	5*5+1*2,10*5+1*2,10*5+3*2, 4*5+1*2,10*5+3*2,11*5+1*2, 7*5+2*2,11*5+1*2, 5*5+1*2, 6*5+1*2,10*5+3*2, 4*5+1*2,10*5+3*2, 4*5+1*2, 7*5+2*2,11*5+1*2
-};
-
-static const u8 cc_cb[0x100] = {
-	4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2,11*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2,11*5+1*2, 4*5+1*2,
-	4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2,11*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2,11*5+1*2, 4*5+1*2,
-	4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2,11*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2,11*5+1*2, 4*5+1*2,
-	4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2,11*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2,11*5+1*2, 4*5+1*2,
-	4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 8*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 8*5+1*2, 4*5+1*2,
-	4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 8*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 8*5+1*2, 4*5+1*2,
-	4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 8*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 8*5+1*2, 4*5+1*2,
-	4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 8*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 8*5+1*2, 4*5+1*2,
-	4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2,11*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2,11*5+1*2, 4*5+1*2,
-	4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2,11*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2,11*5+1*2, 4*5+1*2,
-	4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2,11*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2,11*5+1*2, 4*5+1*2,
-	4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2,11*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2,11*5+1*2, 4*5+1*2,
-	4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2,11*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2,11*5+1*2, 4*5+1*2,
-	4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2,11*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2,11*5+1*2, 4*5+1*2,
-	4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2,11*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2,11*5+1*2, 4*5+1*2,
-	4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2,11*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2,11*5+1*2, 4*5+1*2
-};
-
-static const u8 cc_ed[0x100] = {
-	 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2,
-	 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2,
-	 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2,
-	 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2,
-	 8*5+1*2, 8*5+1*2,11*5+1*2,16*5+3*2, 4*5+1*2,14*5+2*2, 4*5+1*2, 5*5+1*2, 8*5+1*2, 8*5+1*2,11*5+1*2,16*5+3*2, 4*5+1*2,14*5+2*2, 4*5+1*2, 5*5+1*2,
-	 8*5+1*2, 8*5+1*2,11*5+1*2,16*5+3*2, 4*5+1*2,14*5+2*2, 4*5+1*2, 5*5+1*2, 8*5+1*2, 8*5+1*2,11*5+1*2,16*5+3*2, 4*5+1*2,14*5+2*2, 4*5+1*2, 5*5+1*2,
-	 8*5+1*2, 8*5+1*2,11*5+1*2,16*5+3*2, 4*5+1*2,14*5+2*2, 4*5+1*2,14*5+1*2, 8*5+1*2, 8*5+1*2,11*5+1*2,16*5+3*2, 4*5+1*2,14*5+2*2, 4*5+1*2,14*5+1*2,
-	 8*5+1*2, 8*5+1*2,11*5+1*2,16*5+3*2, 4*5+1*2,14*5+2*2, 4*5+1*2, 4*5+1*2, 8*5+1*2, 8*5+1*2,11*5+1*2,16*5+3*2, 4*5+1*2,14*5+2*2, 4*5+1*2, 4*5+1*2,
-	 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2,
-	 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2,
-	12*5+1*2,12*5+1*2,12*5+1*2,12*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2,12*5+1*2,12*5+1*2,12*5+1*2,12*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2,
-	12*5+1*2,12*5+1*2,12*5+1*2,12*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2,12*5+1*2,12*5+1*2,12*5+1*2,12*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2,
-	 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2,
-	 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2,
-	 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2,
-	 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2
-};
-
-static const u8 cc_xy[0x100] = {
-	 4*5+1*2,10*5+3*2, 7*5+1*2, 6*5+1*2, 4*5+1*2, 4*5+1*2, 7*5+2*2, 4*5+1*2, 4*5+1*2,11*5+1*2, 7*5+1*2, 6*5+1*2, 4*5+1*2, 4*5+1*2, 7*5+2*2, 4*5+1*2,
-	 8*5+2*2,10*5+3*2, 7*5+1*2, 6*5+1*2, 4*5+1*2, 4*5+1*2, 7*5+2*2, 4*5+1*2,12*5+2*2,11*5+1*2, 7*5+1*2, 6*5+1*2, 4*5+1*2, 4*5+1*2, 7*5+2*2, 4*5+1*2,
-	 7*5+2*2,10*5+3*2,16*5+3*2, 6*5+1*2, 4*5+1*2, 4*5+1*2, 7*5+2*2, 4*5+1*2, 7*5+2*2,11*5+1*2,16*5+3*2, 6*5+1*2, 4*5+1*2, 4*5+1*2, 7*5+2*2, 4*5+1*2,
-	 7*5+2*2,10*5+3*2,13*5+3*2, 6*5+1*2,19*5+2*2,19*5+2*2,15*5+3*2, 4*5+1*2, 7*5+2*2,11*5+1*2,13*5+3*2, 6*5+1*2, 4*5+1*2, 4*5+1*2, 7*5+2*2, 4*5+1*2,
-	 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2,15*5+2*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2,15*5+2*2, 4*5+1*2,
-	 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2,15*5+2*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2,15*5+2*2, 4*5+1*2,
-	 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2,15*5+2*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2,15*5+2*2, 4*5+1*2,
-	15*5+2*2,15*5+2*2,15*5+2*2,15*5+2*2,15*5+2*2,15*5+2*2, 4*5+1*2,15*5+2*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2,15*5+2*2, 4*5+1*2,
-	 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2,15*5+2*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2,15*5+2*2, 4*5+1*2,
-	 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2,15*5+2*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2,15*5+2*2, 4*5+1*2,
-	 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2,15*5+2*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2,15*5+2*2, 4*5+1*2,
-	 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2,15*5+2*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2, 4*5+1*2,15*5+2*2, 4*5+1*2,
-	 5*5+1*2,10*5+1*2,10*5+3*2,10*5+3*2,10*5+3*2,11*5+1*2, 7*5+2*2,11*5+1*2, 5*5+1*2,10*5+1*2,10*5+3*2, 7*5+1*2,10*5+3*2,17*5+3*2, 7*5+2*2,11*5+1*2,
-	 5*5+1*2,10*5+1*2,10*5+3*2,11*5+2*2,10*5+3*2,11*5+1*2, 7*5+2*2,11*5+1*2, 5*5+1*2, 4*5+1*2,10*5+3*2,11*5+2*2,10*5+3*2, 4*5+1*2, 7*5+2*2,11*5+1*2,
-	 5*5+1*2,10*5+1*2,10*5+3*2,19*5+1*2,10*5+3*2,11*5+1*2, 7*5+2*2,11*5+1*2, 5*5+1*2, 4*5+1*2,10*5+3*2, 4*5+1*2,10*5+3*2, 4*5+1*2, 7*5+2*2,11*5+1*2,
-	 5*5+1*2,10*5+1*2,10*5+3*2, 4*5+1*2,10*5+3*2,11*5+1*2, 7*5+2*2,11*5+1*2, 5*5+1*2, 6*5+1*2,10*5+3*2, 4*5+1*2,10*5+3*2, 4*5+1*2, 7*5+2*2,11*5+1*2
-};
-
-static const u8 cc_xycb[0x100] = {
-	12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,
-	12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,
-	12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,
-	12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,
-	 9*5, 9*5, 9*5, 9*5, 9*5, 9*5, 9*5, 9*5, 9*5, 9*5, 9*5, 9*5, 9*5, 9*5, 9*5, 9*5,
-	 9*5, 9*5, 9*5, 9*5, 9*5, 9*5, 9*5, 9*5, 9*5, 9*5, 9*5, 9*5, 9*5, 9*5, 9*5, 9*5,
-	 9*5, 9*5, 9*5, 9*5, 9*5, 9*5, 9*5, 9*5, 9*5, 9*5, 9*5, 9*5, 9*5, 9*5, 9*5, 9*5,
-	 9*5, 9*5, 9*5, 9*5, 9*5, 9*5, 9*5, 9*5, 9*5, 9*5, 9*5, 9*5, 9*5, 9*5, 9*5, 9*5,
-	12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,
-	12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,
-	12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,
-	12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,
-	12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,
-	12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,
-	12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,
-	12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5,12*5
-};
-
-/* extra cycles if jr/jp/call taken and 'interrupt latency' on rst 0-7 */
-static const u8 cc_ex[0x100] = {
-	0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5,
-	5*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, /* DJNZ */
-	5*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 5*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, /* JR NZ/JR Z */
-	5*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 5*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, /* JR NC/JR C */
-	0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5,
-	0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5,
-	0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5,
-	0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5,
-	0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5,
-	0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5,
-	0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5, 0*5,
-	5*5, 5*5, 5*5, 5*5, 0*5, 0*5, 0*5, 0*5, 5*5, 5*5, 5*5, 5*5, 0*5, 0*5, 0*5, 0*5, /* LDIR/CPIR/INIR/OTIR LDDR/CPDR/INDR/OTDR */
-	6*5, 0*5, 0*5, 0*5, 7*5, 0*5, 0*5, 2*5, 6*5, 0*5, 0*5, 0*5, 7*5, 0*5, 0*5, 2*5,
-	6*5, 0*5, 0*5, 0*5, 7*5, 0*5, 0*5, 2*5, 6*5, 0*5, 0*5, 0*5, 7*5, 0*5, 0*5, 2*5,
-	6*5, 0*5, 0*5, 0*5, 7*5, 0*5, 0*5, 2*5, 6*5, 0*5, 0*5, 0*5, 7*5, 0*5, 0*5, 2*5,
-	6*5, 0*5, 0*5, 0*5, 7*5, 0*5, 0*5, 2*5, 6*5, 0*5, 0*5, 0*5, 7*5, 0*5, 0*5, 2*5
-};
 
 void system1_state::machine_start()
 {
@@ -469,12 +339,8 @@ void system1_state::machine_start()
 		m_bank1d->set_entry(0);
 	}
 
-	m_maincpu->z80_set_cycle_tables(cc_op, cc_cb, cc_ed, cc_xy, cc_xycb, cc_ex);
-
-	m_mute_xor = 0x00;
-	m_dakkochn_mux_data = 0x00;
-
 	save_item(NAME(m_dakkochn_mux_data));
+	save_item(NAME(m_adjust_cycles));
 	save_item(NAME(m_videomode_prev));
 	save_item(NAME(m_mcu_control));
 	save_item(NAME(m_nob_maincpu_latch));
@@ -493,6 +359,31 @@ MACHINE_START_MEMBER(system1_state,system2)
 void system1_state::machine_reset()
 {
 	m_dakkochn_mux_data = 0;
+}
+
+
+/*************************************
+ *
+ *  Main CPU clocking
+ *
+ *************************************/
+
+/*
+    A 20MHz crystal clocks an LS161 which counts up from either 10 or 11 to 16 before
+    carrying out and forcing a reload. The low bit of the reload value comes from the
+    Z80's /M1 signal. When /M1 is low (an opcode is being fetched), the reload count
+    is 10, which means the 20MHz clock is divided by 6. When /M1 is high, the reload
+    count is 11, which means the clock is divided by 5.
+
+    Since /M1 is low for 2 cycles during opcode fetch, this makes every opcode fetch
+    take an extra 2 20MHz clocks, which is 2/5th cycles at 4MHz.
+*/
+
+void system1_state::adjust_cycles(u8 data)
+{
+	m_adjust_cycles = (m_adjust_cycles + 2) % 5;
+	if (m_adjust_cycles <= 1)
+		m_maincpu->adjust_icount(-1);
 }
 
 
@@ -2276,10 +2167,11 @@ GFXDECODE_END
 void system1_state::sys1ppi(machine_config &config)
 {
 	/* basic machine hardware */
-	Z80(config, m_maincpu, MASTER_CLOCK);  /* not really, see notes above */
+	Z80(config, m_maincpu, MASTER_CLOCK/5);
 	m_maincpu->set_addrmap(AS_PROGRAM, &system1_state::system1_map);
 	m_maincpu->set_addrmap(AS_IO, &system1_state::system1_ppi_io_map);
 	m_maincpu->set_vblank_int("screen", FUNC(system1_state::irq0_line_hold));
+	m_maincpu->refresh_cb().set(FUNC(system1_state::adjust_cycles));
 
 	Z80(config, m_soundcpu, SOUND_CLOCK/2);
 	m_soundcpu->set_addrmap(AS_PROGRAM, &system1_state::sound_map);
@@ -2292,10 +2184,13 @@ void system1_state::sys1ppi(machine_config &config)
 	m_ppi8255->out_pa_callback().set(FUNC(system1_state::soundport_w));
 	m_ppi8255->out_pb_callback().set(FUNC(system1_state::videomode_w));
 	m_ppi8255->out_pc_callback().set(FUNC(system1_state::sound_control_w));
+	m_ppi8255->tri_pa_callback().set_constant(0x00);
+	m_ppi8255->tri_pb_callback().set_constant(0x40);
+	m_ppi8255->tri_pc_callback().set_constant(0x80);
 
 	/* video hardware */
 	SCREEN(config, m_screen, SCREEN_TYPE_RASTER);
-	m_screen->set_video_attributes(VIDEO_ALWAYS_UPDATE);  /* needed for proper hardware collisions */
+	m_screen->set_video_attributes(VIDEO_ALWAYS_UPDATE); /* needed for proper hardware collisions */
 	m_screen->set_raw(MASTER_CLOCK/2, 640, 0, 512, 260, 0, 224);
 	m_screen->set_screen_update(FUNC(system1_state::screen_update_system1));
 	m_screen->set_palette(m_palette);
@@ -2308,10 +2203,10 @@ void system1_state::sys1ppi(machine_config &config)
 
 	GENERIC_LATCH_8(config, m_soundlatch);
 
-	SN76489A(config, "sn1", SOUND_CLOCK/4).add_route(ALL_OUTPUTS, "mono", 0.50);
+	SN76489A(config, m_sn[0], SOUND_CLOCK/4).add_route(ALL_OUTPUTS, "mono", 0.50);
 
 	/* 2nd SN's clock is selectable via jumper */
-	SN76489A(config, "sn2", SOUND_CLOCK/2).add_route(ALL_OUTPUTS, "mono", 0.50);
+	SN76489A(config, m_sn[1], SOUND_CLOCK/2).add_route(ALL_OUTPUTS, "mono", 0.50);
 }
 
 /* reduced visible area for scrolling games */
@@ -2344,6 +2239,7 @@ void system1_state::encrypted_sys1ppi_maps(machine_config &config)
 	m_maincpu->set_addrmap(AS_OPCODES, &system1_state::decrypted_opcodes_map);
 	m_maincpu->set_addrmap(AS_IO, &system1_state::system1_ppi_io_map);
 	m_maincpu->set_vblank_int("screen", FUNC(system1_state::irq0_line_hold));
+	m_maincpu->refresh_cb().set(FUNC(system1_state::adjust_cycles));
 }
 
 void system1_state::encrypted_sys1pio_maps(machine_config &config)
@@ -2352,6 +2248,7 @@ void system1_state::encrypted_sys1pio_maps(machine_config &config)
 	m_maincpu->set_addrmap(AS_OPCODES, &system1_state::decrypted_opcodes_map);
 	m_maincpu->set_addrmap(AS_IO, &system1_state::system1_pio_io_map);
 	m_maincpu->set_vblank_int("screen", FUNC(system1_state::irq0_line_hold));
+	m_maincpu->refresh_cb().set(FUNC(system1_state::adjust_cycles));
 }
 
 void system1_state::encrypted_sys2_mc8123_maps(machine_config &config)
@@ -2360,12 +2257,13 @@ void system1_state::encrypted_sys2_mc8123_maps(machine_config &config)
 	m_maincpu->set_addrmap(AS_OPCODES, &system1_state::banked_decrypted_opcodes_map);
 	m_maincpu->set_addrmap(AS_IO, &system1_state::system1_ppi_io_map);
 	m_maincpu->set_vblank_int("screen", FUNC(system1_state::irq0_line_hold));
+	m_maincpu->refresh_cb().set(FUNC(system1_state::adjust_cycles));
 }
 
 void system1_state::sys1pioxb(machine_config &config)
 {
 	sys1pio(config);
-	MC8123(config.replace(), m_maincpu, MASTER_CLOCK);
+	MC8123(config.replace(), m_maincpu, MASTER_CLOCK/5);
 	encrypted_sys1pio_maps(config);
 }
 
@@ -2378,7 +2276,7 @@ void system1_state::blockgal(machine_config &config)
 void system1_state::sys1ppix_315_5178(machine_config &config)
 {
 	sys1ppi(config);
-	segacrp2_z80_device &z80(SEGA_315_5178(config.replace(), m_maincpu, MASTER_CLOCK));
+	segacrp2_z80_device &z80(SEGA_315_5178(config.replace(), m_maincpu, MASTER_CLOCK/5));
 	encrypted_sys1ppi_maps(config);
 	z80.set_decrypted_tag(m_decrypted_opcodes);
 }
@@ -2386,7 +2284,7 @@ void system1_state::sys1ppix_315_5178(machine_config &config)
 void system1_state::sys1ppix_315_5179(machine_config &config)
 {
 	sys1ppi(config);
-	segacrp2_z80_device &z80(SEGA_315_5179(config.replace(), m_maincpu, MASTER_CLOCK));
+	segacrp2_z80_device &z80(SEGA_315_5179(config.replace(), m_maincpu, MASTER_CLOCK/5));
 	encrypted_sys1ppi_maps(config);
 	z80.set_decrypted_tag(m_decrypted_opcodes);
 }
@@ -2394,7 +2292,7 @@ void system1_state::sys1ppix_315_5179(machine_config &config)
 void system1_state::sys1ppix_315_5051(machine_config &config)
 {
 	sys1ppi(config);
-	segacrpt_z80_device &z80(SEGA_315_5051(config.replace(), m_maincpu, MASTER_CLOCK));
+	segacrpt_z80_device &z80(SEGA_315_5051(config.replace(), m_maincpu, MASTER_CLOCK/5));
 	encrypted_sys1ppi_maps(config);
 	z80.set_decrypted_tag(":decrypted_opcodes");
 }
@@ -2402,7 +2300,7 @@ void system1_state::sys1ppix_315_5051(machine_config &config)
 void system1_state::sys1ppix_315_5048(machine_config &config)
 {
 	sys1ppi(config);
-	segacrpt_z80_device &z80(SEGA_315_5048(config.replace(), m_maincpu, MASTER_CLOCK));
+	segacrpt_z80_device &z80(SEGA_315_5048(config.replace(), m_maincpu, MASTER_CLOCK/5));
 	encrypted_sys1ppi_maps(config);
 	z80.set_decrypted_tag(":decrypted_opcodes");
 }
@@ -2410,7 +2308,7 @@ void system1_state::sys1ppix_315_5048(machine_config &config)
 void system1_state::sys1ppix_315_5033(machine_config &config)
 {
 	sys1ppi(config);
-	segacrpt_z80_device &z80(SEGA_315_5033(config.replace(), m_maincpu, MASTER_CLOCK));
+	segacrpt_z80_device &z80(SEGA_315_5033(config.replace(), m_maincpu, MASTER_CLOCK/5));
 	encrypted_sys1ppi_maps(config);
 	z80.set_decrypted_tag(":decrypted_opcodes");
 }
@@ -2418,7 +2316,7 @@ void system1_state::sys1ppix_315_5033(machine_config &config)
 void system1_state::sys1ppix_315_5065(machine_config &config)
 {
 	sys1ppi(config);
-	segacrpt_z80_device &z80(SEGA_315_5065(config.replace(), m_maincpu, MASTER_CLOCK));
+	segacrpt_z80_device &z80(SEGA_315_5065(config.replace(), m_maincpu, MASTER_CLOCK/5));
 	encrypted_sys1ppi_maps(config);
 	z80.set_decrypted_tag(":decrypted_opcodes");
 }
@@ -2426,7 +2324,7 @@ void system1_state::sys1ppix_315_5065(machine_config &config)
 void system1_state::sys1ppix_315_5098(machine_config &config)
 {
 	sys1ppi(config);
-	segacrpt_z80_device &z80(SEGA_315_5098(config.replace(), m_maincpu, MASTER_CLOCK));
+	segacrpt_z80_device &z80(SEGA_315_5098(config.replace(), m_maincpu, MASTER_CLOCK/5));
 	encrypted_sys1ppi_maps(config);
 	z80.set_decrypted_tag(":decrypted_opcodes");
 }
@@ -2434,7 +2332,7 @@ void system1_state::sys1ppix_315_5098(machine_config &config)
 void system1_state::sys1piox_315_5177(machine_config &config)
 {
 	sys1pio(config);
-	segacrp2_z80_device &z80(SEGA_315_5177(config.replace(), m_maincpu, MASTER_CLOCK));
+	segacrp2_z80_device &z80(SEGA_315_5177(config.replace(), m_maincpu, MASTER_CLOCK/5));
 	encrypted_sys1pio_maps(config);
 	z80.set_decrypted_tag(m_decrypted_opcodes);
 }
@@ -2442,7 +2340,7 @@ void system1_state::sys1piox_315_5177(machine_config &config)
 void system1_state::sys1piox_315_5162(machine_config &config)
 {
 	sys1pio(config);
-	segacrp2_z80_device &z80(SEGA_315_5162(config.replace(), m_maincpu, MASTER_CLOCK));
+	segacrp2_z80_device &z80(SEGA_315_5162(config.replace(), m_maincpu, MASTER_CLOCK/5));
 	encrypted_sys1pio_maps(config);
 	z80.set_decrypted_tag(m_decrypted_opcodes);
 }
@@ -2450,15 +2348,17 @@ void system1_state::sys1piox_315_5162(machine_config &config)
 void system1_state::sys1piox_317_0006(machine_config &config)
 {
 	sys1pio(config);
-	segacrp2_z80_device &z80(SEGA_317_0006(config.replace(), m_maincpu, MASTER_CLOCK));
+	segacrp2_z80_device &z80(SEGA_317_0006(config.replace(), m_maincpu, MASTER_CLOCK/5));
 	encrypted_sys1pio_maps(config);
 	z80.set_decrypted_tag(m_decrypted_opcodes);
+
+	m_sn[1]->set_clock(SOUND_CLOCK / 4);
 }
 
 void system1_state::sys1piox_315_5135(machine_config &config)
 {
 	sys1pio(config);
-	segacrpt_z80_device &z80(SEGA_315_5135(config.replace(), m_maincpu, MASTER_CLOCK));
+	segacrpt_z80_device &z80(SEGA_315_5135(config.replace(), m_maincpu, MASTER_CLOCK/5));
 	encrypted_sys1pio_maps(config);
 	z80.set_decrypted_tag(":decrypted_opcodes");
 }
@@ -2466,7 +2366,7 @@ void system1_state::sys1piox_315_5135(machine_config &config)
 void system1_state::sys1piox_315_5132(machine_config &config)
 {
 	sys1pio(config);
-	segacrpt_z80_device &z80(SEGA_315_5132(config.replace(), m_maincpu, MASTER_CLOCK));
+	segacrpt_z80_device &z80(SEGA_315_5132(config.replace(), m_maincpu, MASTER_CLOCK/5));
 	encrypted_sys1pio_maps(config);
 	z80.set_decrypted_tag(":decrypted_opcodes");
 }
@@ -2474,7 +2374,15 @@ void system1_state::sys1piox_315_5132(machine_config &config)
 void system1_state::sys1piox_315_5155(machine_config &config)
 {
 	sys1pio(config);
-	segacrpt_z80_device &z80(SEGA_315_5155(config.replace(), m_maincpu, MASTER_CLOCK));
+	segacrpt_z80_device &z80(SEGA_315_5155(config.replace(), m_maincpu, MASTER_CLOCK/5));
+	encrypted_sys1pio_maps(config);
+	z80.set_decrypted_tag(":decrypted_opcodes");
+}
+
+void system1_state::sys1piox_315_5111(machine_config &config)
+{
+	sys1pio(config);
+	segacrpt_z80_device &z80(SEGA_315_5111(config.replace(), m_maincpu, MASTER_CLOCK/5));
 	encrypted_sys1pio_maps(config);
 	z80.set_decrypted_tag(":decrypted_opcodes");
 }
@@ -2482,7 +2390,7 @@ void system1_state::sys1piox_315_5155(machine_config &config)
 void system1_state::sys1piox_315_5110(machine_config &config)
 {
 	sys1pio(config);
-	segacrpt_z80_device &z80(SEGA_315_5110(config.replace(), m_maincpu, MASTER_CLOCK));
+	segacrpt_z80_device &z80(SEGA_315_5110(config.replace(), m_maincpu, MASTER_CLOCK/5));
 	encrypted_sys1pio_maps(config);
 	z80.set_decrypted_tag(":decrypted_opcodes");
 }
@@ -2490,7 +2398,7 @@ void system1_state::sys1piox_315_5110(machine_config &config)
 void system1_state::sys1piox_315_5051(machine_config &config)
 {
 	sys1pio(config);
-	segacrpt_z80_device &z80(SEGA_315_5051(config.replace(), m_maincpu, MASTER_CLOCK));
+	segacrpt_z80_device &z80(SEGA_315_5051(config.replace(), m_maincpu, MASTER_CLOCK/5));
 	encrypted_sys1pio_maps(config);
 	z80.set_decrypted_tag(":decrypted_opcodes");
 }
@@ -2498,7 +2406,7 @@ void system1_state::sys1piox_315_5051(machine_config &config)
 void system1_state::sys1piox_315_5098(machine_config &config)
 {
 	sys1pio(config);
-	segacrpt_z80_device &z80(SEGA_315_5098(config.replace(), m_maincpu, MASTER_CLOCK));
+	segacrpt_z80_device &z80(SEGA_315_5098(config.replace(), m_maincpu, MASTER_CLOCK/5));
 	encrypted_sys1pio_maps(config);
 	z80.set_decrypted_tag(":decrypted_opcodes");
 }
@@ -2506,7 +2414,7 @@ void system1_state::sys1piox_315_5098(machine_config &config)
 void system1_state::sys1piox_315_5102(machine_config &config)
 {
 	sys1pio(config);
-	segacrpt_z80_device &z80(SEGA_315_5102(config.replace(), m_maincpu, MASTER_CLOCK));
+	segacrpt_z80_device &z80(SEGA_315_5102(config.replace(), m_maincpu, MASTER_CLOCK/5));
 	encrypted_sys1pio_maps(config);
 	z80.set_decrypted_tag(":decrypted_opcodes");
 }
@@ -2514,7 +2422,7 @@ void system1_state::sys1piox_315_5102(machine_config &config)
 void system1_state::sys1piox_315_5133(machine_config &config)
 {
 	sys1pio(config);
-	segacrpt_z80_device &z80(SEGA_315_5133(config.replace(), m_maincpu, MASTER_CLOCK));
+	segacrpt_z80_device &z80(SEGA_315_5133(config.replace(), m_maincpu, MASTER_CLOCK/5));
 	encrypted_sys1pio_maps(config);
 	z80.set_decrypted_tag(":decrypted_opcodes");
 }
@@ -2522,7 +2430,7 @@ void system1_state::sys1piox_315_5133(machine_config &config)
 void system1_state::sys1piox_315_5093(machine_config &config)
 {
 	sys1pio(config);
-	segacrpt_z80_device &z80(SEGA_315_5093(config.replace(), m_maincpu, MASTER_CLOCK));
+	segacrpt_z80_device &z80(SEGA_315_5093(config.replace(), m_maincpu, MASTER_CLOCK/5));
 	encrypted_sys1pio_maps(config);
 	z80.set_decrypted_tag(":decrypted_opcodes");
 }
@@ -2530,7 +2438,7 @@ void system1_state::sys1piox_315_5093(machine_config &config)
 void system1_state::sys1piox_315_5065(machine_config &config)
 {
 	sys1pio(config);
-	segacrpt_z80_device &z80(SEGA_315_5065(config.replace(), m_maincpu, MASTER_CLOCK));
+	segacrpt_z80_device &z80(SEGA_315_5065(config.replace(), m_maincpu, MASTER_CLOCK/5));
 	encrypted_sys1pio_maps(config);
 	z80.set_decrypted_tag(":decrypted_opcodes");
 }
@@ -2545,15 +2453,15 @@ void system1_state::sys1pios(machine_config &config)
 void system1_state::sys1piosx_315_5099(machine_config &config)
 {
 	sys1pio(config);
-	segacrpt_z80_device &z80(SEGA_315_5099(config.replace(), m_maincpu, MASTER_CLOCK));
+	segacrpt_z80_device &z80(SEGA_315_5099(config.replace(), m_maincpu, MASTER_CLOCK/5));
 	encrypted_sys1pio_maps(config);
 	z80.set_decrypted_tag(":decrypted_opcodes");
 }
 
-void system1_state::sys1piosx_315_spat(machine_config &config)
+void system1_state::sys1piosx_315_5096(machine_config &config)
 {
 	sys1pios(config);
-	segacrpt_z80_device &z80(SEGA_315_SPAT(config.replace(), m_maincpu, MASTER_CLOCK));
+	segacrpt_z80_device &z80(SEGA_315_5096(config.replace(), m_maincpu, MASTER_CLOCK/5));
 	encrypted_sys1pio_maps(config);
 	z80.set_decrypted_tag(":decrypted_opcodes");
 }
@@ -2561,7 +2469,7 @@ void system1_state::sys1piosx_315_spat(machine_config &config)
 void system1_state::sys1ppisx_315_5064(machine_config &config)
 {
 	sys1ppis(config);
-	segacrpt_z80_device &z80(SEGA_315_5064(config.replace(), m_maincpu, MASTER_CLOCK));
+	segacrpt_z80_device &z80(SEGA_315_5064(config.replace(), m_maincpu, MASTER_CLOCK/5));
 	encrypted_sys1ppi_maps(config);
 	z80.set_decrypted_tag(":decrypted_opcodes");
 }
@@ -2569,7 +2477,7 @@ void system1_state::sys1ppisx_315_5064(machine_config &config)
 void system1_state::sys1ppisx_315_5041(machine_config &config)
 {
 	sys1ppis(config);
-	segacrpt_z80_device &z80(SEGA_315_5041(config.replace(), m_maincpu, MASTER_CLOCK));
+	segacrpt_z80_device &z80(SEGA_315_5041(config.replace(), m_maincpu, MASTER_CLOCK/5));
 	encrypted_sys1ppi_maps(config);
 	z80.set_decrypted_tag(":decrypted_opcodes");
 }
@@ -2598,6 +2506,8 @@ void system1_state::nob(machine_config &config)
 
 	/* basic machine hardware */
 	m_maincpu->set_addrmap(AS_PROGRAM, &system1_state::nobo_map);
+
+	m_sn[1]->set_clock(SOUND_CLOCK / 4);
 }
 
 void system1_state::nobm(machine_config &config)
@@ -2635,7 +2545,7 @@ void system1_state::sys2x(machine_config &config)
 void system1_state::sys2_315_5177(machine_config &config)
 {
 	sys2(config);
-	segacrp2_z80_device &z80(SEGA_315_5177(config.replace(), m_maincpu, MASTER_CLOCK));
+	segacrp2_z80_device &z80(SEGA_315_5177(config.replace(), m_maincpu, MASTER_CLOCK/5));
 	encrypted_sys1ppi_maps(config);
 	z80.set_decrypted_tag(m_decrypted_opcodes);
 }
@@ -2643,7 +2553,7 @@ void system1_state::sys2_315_5177(machine_config &config)
 void system1_state::sys2_315_5176(machine_config &config)
 {
 	sys2(config);
-	segacrp2_z80_device &z80(SEGA_315_5176(config.replace(), m_maincpu, MASTER_CLOCK));
+	segacrp2_z80_device &z80(SEGA_315_5176(config.replace(), m_maincpu, MASTER_CLOCK/5));
 	encrypted_sys1ppi_maps(config);
 	z80.set_decrypted_tag(m_decrypted_opcodes);
 }
@@ -2651,23 +2561,27 @@ void system1_state::sys2_315_5176(machine_config &config)
 void system1_state::sys2_317_0006(machine_config &config)
 {
 	sys2(config);
-	segacrp2_z80_device &z80(SEGA_317_0006(config.replace(), m_maincpu, MASTER_CLOCK));
+	segacrp2_z80_device &z80(SEGA_317_0006(config.replace(), m_maincpu, MASTER_CLOCK/5));
 	encrypted_sys1ppi_maps(config);
 	z80.set_decrypted_tag(m_decrypted_opcodes);
+
+	m_sn[1]->set_clock(SOUND_CLOCK / 4);
 }
 
 void system1_state::sys2_317_0007(machine_config &config)
 {
 	sys2(config);
-	segacrp2_z80_device &z80(SEGA_317_0007(config.replace(), m_maincpu, MASTER_CLOCK));
+	segacrp2_z80_device &z80(SEGA_317_0007(config.replace(), m_maincpu, MASTER_CLOCK/5));
 	encrypted_sys1ppi_maps(config);
 	z80.set_decrypted_tag(m_decrypted_opcodes);
+
+	m_sn[1]->set_clock(SOUND_CLOCK / 4);
 }
 
 void system1_state::sys2xb(machine_config &config)
 {
 	sys2(config);
-	MC8123(config.replace(), m_maincpu, MASTER_CLOCK);
+	MC8123(config.replace(), m_maincpu, MASTER_CLOCK/5);
 	encrypted_sys2_mc8123_maps(config);
 }
 
@@ -2695,7 +2609,7 @@ void system1_state::sys2row(machine_config &config)
 void system1_state::sys2rowxb(machine_config &config)
 {
 	sys2row(config);
-	MC8123(config.replace(), m_maincpu, MASTER_CLOCK);
+	MC8123(config.replace(), m_maincpu, MASTER_CLOCK/5);
 	encrypted_sys2_mc8123_maps(config);
 }
 
@@ -3006,7 +2920,7 @@ ROM_START( swat ) /* Sega game ID# 834-5388 SWAT */
 ROM_END
 
 
-ROM_START( flicky )
+ROM_START( flicky ) /* Sega game ID# 834-5411-04 FLICKY */
 	ROM_REGION( 0x10000, "maincpu", 0 )
 	ROM_LOAD( "epr-5978a.116",  0x0000, 0x4000, CRC(296f1492) SHA1(52e2c63ce376ab8124b2c68bdfa432b6621cfa78) ) /* encrypted */
 	ROM_LOAD( "epr-5979a.109",  0x4000, 0x4000, CRC(64b03ef9) SHA1(7519aa7f036bce6d52a5d4be2418139559f9a8a5) ) /* encrypted */
@@ -3030,8 +2944,7 @@ ROM_START( flicky )
 	ROM_LOAD( "pr-5317.76",     0x0000, 0x0100, CRC(648350b8) SHA1(c7986aa9127ef5b50b845434cb4e81dff9861cd2) )
 ROM_END
 
-// PCB label: 834-5411-11 FLICKY
-ROM_START( flickya )
+ROM_START( flickya ) /* Sega game ID# 834-5411-11 FLICKY */
 	ROM_REGION( 0x10000, "maincpu", 0 )
 	ROM_LOAD( "epr-5978a.116",  0x0000, 0x4000, CRC(296f1492) SHA1(52e2c63ce376ab8124b2c68bdfa432b6621cfa78) ) /* encrypted */
 	ROM_LOAD( "epr-5979a.109",  0x4000, 0x4000, CRC(64b03ef9) SHA1(7519aa7f036bce6d52a5d4be2418139559f9a8a5) ) /* encrypted */
@@ -3102,12 +3015,12 @@ ROM_START( flickys1 )
 	ROM_LOAD( "pr-5317.76",     0x0000, 0x0100, CRC(648350b8) SHA1(c7986aa9127ef5b50b845434cb4e81dff9861cd2) )
 ROM_END
 
-ROM_START( flickyo )
+ROM_START( flickyo ) /* Sega game ID# 834-5411  FLICKY */
 	ROM_REGION( 0x10000, "maincpu", 0 )
-	ROM_LOAD( "epr-5857.bin",   0x0000, 0x2000, CRC(a65ac88e) SHA1(1d1c276f7ffb33bc9f216b6b69517f1783d435a4) ) /* encrypted */
-	ROM_LOAD( "epr-5858a.bin",  0x2000, 0x2000, CRC(18b412f4) SHA1(6205dc2a6c1092f9bc7752672b7c06d5faf2f65e) ) /* encrypted */
-	ROM_LOAD( "epr-5859.bin",   0x4000, 0x2000, CRC(a5558d7e) SHA1(ca59c7e57ae45f960f769db9a04ffa5c870005dd) ) /* encrypted */
-	ROM_LOAD( "epr-5860.bin",   0x6000, 0x2000, CRC(1b35fef1) SHA1(53ca5361309c59a2b3490ea0037c6e58f07837d9) ) /* encrypted */
+	ROM_LOAD( "epr-5857.ic129",  0x0000, 0x2000, CRC(a65ac88e) SHA1(1d1c276f7ffb33bc9f216b6b69517f1783d435a4) ) /* encrypted */
+	ROM_LOAD( "epr-5858a.ic30",  0x2000, 0x2000, CRC(18b412f4) SHA1(6205dc2a6c1092f9bc7752672b7c06d5faf2f65e) ) /* encrypted */
+	ROM_LOAD( "epr-5859.ic31",   0x4000, 0x2000, CRC(a5558d7e) SHA1(ca59c7e57ae45f960f769db9a04ffa5c870005dd) ) /* encrypted */
+	ROM_LOAD( "epr-5860.ic32",   0x6000, 0x2000, CRC(1b35fef1) SHA1(53ca5361309c59a2b3490ea0037c6e58f07837d9) ) /* encrypted */
 
 	ROM_REGION( 0x10000, "soundcpu", 0 )
 	ROM_LOAD( "epr-5869.120",   0x0000, 0x2000, CRC(6d220d4e) SHA1(fe02a7a94a1ad046fc775a7f67f460c8d0f6dca6) )
@@ -3153,6 +3066,39 @@ ROM_START( flickyup )
 
 	ROM_REGION( 0x0100, "lookup_proms", 0 )
 	ROM_LOAD( "pr-5317.76",     0x0000, 0x0100, CRC(648350b8) SHA1(c7986aa9127ef5b50b845434cb4e81dff9861cd2) ) /* location ic106 */
+ROM_END
+
+// Converted from and running on an original Up n' Down board, with a bootleg piggyback board with standard Z80 + PROM and PAL
+ROM_START( flickyupa )
+	ROM_REGION( 0x10000, "maincpu", 0 ) // on piggyback board
+	ROM_LOAD( "1", 0x0000, 0x2000, CRC(45391848) SHA1(9e4744ec6e88a7445b5dc7efc96cbac570403acb) )
+	ROM_LOAD( "2", 0x2000, 0x2000, CRC(bf15cb82) SHA1(5e33aaac49f740441102f75187cb694f24b462a9) )
+	ROM_LOAD( "3", 0x4000, 0x2000, CRC(6ee40df4) SHA1(b01f88636afbc2cb8011665d47c816f409fe311b) )
+	ROM_LOAD( "4", 0x6000, 0x2000, CRC(fdecc2b5) SHA1(22b9f06645ed068012919f3c1bb5ee018b92ac49) )
+
+	ROM_REGION( 0x10000, "soundcpu", 0 )
+	ROM_LOAD( "13.120", 0x0000, 0x2000, CRC(6d220d4e) SHA1(fe02a7a94a1ad046fc775a7f67f460c8d0f6dca6) )
+
+	ROM_REGION( 0xc000, "tiles", 0 )
+	ROM_LOAD( "7.62",  0x0000, 0x2000, CRC(7402256b) SHA1(5bd660ac24a2d0d8ad983e948674a82a2d2e8b49) )
+	ROM_LOAD( "10.61", 0x2000, 0x2000, CRC(2f5ce930) SHA1(4bc3bc6eb8f03926d3710c9f96fcc1b116e918d3) )
+	ROM_LOAD( "6.64",  0x4000, 0x2000, CRC(967f1d9a) SHA1(652be7848526c6e61db4a502f75d1689d2ff2f59) )
+	ROM_LOAD( "9.63",  0x6000, 0x2000, CRC(03d9a34c) SHA1(e158db3e0b86f2b8ad34cefc2714cb0a942efde7) )
+	ROM_LOAD( "5.66",  0x8000, 0x2000, CRC(e659f358) SHA1(cf59f1fb0f9fb77d5ac36be52b6ee946ee85d6de) )
+	ROM_LOAD( "8.65",  0xa000, 0x2000, CRC(a496ca15) SHA1(8c629a853486bbe049b1deecdc00f9e16b87698f) )
+
+	ROM_REGION( 0x8000, "sprites", 0 )
+	ROM_LOAD( "12.117", 0x0000, 0x4000, CRC(b5f894a1) SHA1(2c72dc16739dad155fcd572e1add067a7647f5bd) )
+	ROM_LOAD( "11.110", 0x4000, 0x4000, CRC(266af78f) SHA1(dcbfce550d10a1f2b3ce3e7e081fc008cb575708) )
+
+	ROM_REGION( 0x0100, "lookup_proms", 0 )
+	ROM_LOAD( "pr-5317.76", 0x0000, 0x0100, CRC(648350b8) SHA1(c7986aa9127ef5b50b845434cb4e81dff9861cd2) )
+
+	ROM_REGION( 0x0100, "decryption_prom", 0 ) // on piggyback board
+	ROM_LOAD( "n82s129n", 0x0000, 0x0100, NO_DUMP )
+
+	ROM_REGION( 0x00cc, "plds", 0 )
+	ROM_LOAD( "pal20l10cns", 0x0000, 0x00cc, NO_DUMP ) // on piggyback board
 ROM_END
 
 
@@ -3705,6 +3651,33 @@ ROM_START( teddybbo )
 	ROM_LOAD( "epr-6739.116",   0x0000, 0x4000, CRC(81a37e69) SHA1(ddd0fd7ba5b3646c43ae4261f1e3fedd4184d92c) ) /* encrypted */
 	ROM_LOAD( "epr-6740.109",   0x4000, 0x4000, CRC(715388a9) SHA1(5affc4ecb1e0d58b69093aed732b1e292b8d3118) ) /* encrypted */
 	ROM_LOAD( "epr-6741.96",    0x8000, 0x4000, CRC(e5a74f5f) SHA1(ccf18b424d4aaeec0bae1e6f096b4c176f6ab554) )
+
+	ROM_REGION( 0x10000, "soundcpu", 0 )
+	ROM_LOAD( "epr-6748.120",   0x0000, 0x2000, CRC(9325a1cf) SHA1(555d137b1c974b144ebe6593b4c32c97b3bb5de9) )
+
+	ROM_REGION( 0xc000, "tiles", 0 )
+	ROM_LOAD( "epr-6747.62",    0x0000, 0x2000, CRC(a0e5aca7) SHA1(e7d35ed5e1606a1ea8b29eeca3ca807ed163573b) )
+	ROM_LOAD( "epr-6746.61",    0x2000, 0x2000, CRC(cdb77e51) SHA1(590855f41b62fe9a84db51f90242697abb603c00) )
+	ROM_LOAD( "epr-6745.64",    0x4000, 0x2000, CRC(0cab75c3) SHA1(ef9b74c62fbd81db8942f0b7aa2569a8f4843e9d) )
+	ROM_LOAD( "epr-6744.63",    0x6000, 0x2000, CRC(0ef8d2cd) SHA1(cf9ebf8e3c1d0794b3d3377464f3908d4fcee6f7) )
+	ROM_LOAD( "epr-6743.66",    0x8000, 0x2000, CRC(c33062b5) SHA1(5845da895059ff0271a6ed6fd0fa1392be1ac223) )
+	ROM_LOAD( "epr-6742.65",    0xa000, 0x2000, CRC(c457e8c5) SHA1(3c1008ae8b054c198cfeb0a66534fb51beaee0f6) )
+
+	ROM_REGION( 0x10000, "sprites", 0 )
+	ROM_LOAD( "epr-6735.117",   0x0000, 0x4000, CRC(1be35a97) SHA1(7524cfa1a9c9a2e37753f119e7ac7aa3158621be) )
+	ROM_LOAD( "epr-6737.04",    0x4000, 0x4000, CRC(6b53aa7a) SHA1(b1b3ff9460b2321e72b49befa63b61c9c36fedd9) )
+	ROM_LOAD( "epr-6736.110",   0x8000, 0x4000, CRC(565c25d0) SHA1(5ae524ef01138c5042b223286d65eb9043c0f0d5) )
+	ROM_LOAD( "epr-6738.05",    0xc000, 0x4000, CRC(e116285f) SHA1(b6fb50b02a981b3b23385200045ae537092d26d6) )
+
+	ROM_REGION( 0x0100, "lookup_proms", 0 )
+	ROM_LOAD( "pr-5317.76",     0x0000, 0x0100, CRC(648350b8) SHA1(c7986aa9127ef5b50b845434cb4e81dff9861cd2) )
+ROM_END
+
+ROM_START( teddybboa ) // uses same program numbers of the new version but it's similar to the old one with different encryption module?
+	ROM_REGION( 0x10000, "maincpu", 0 )
+	ROM_LOAD( "epr-6768.116",   0x0000, 0x4000, CRC(30437ff1) SHA1(117995ad21ba716152d3f45e3ac10310ea9930a0) ) // encrypted, SLDH
+	ROM_LOAD( "epr-6769.109",   0x4000, 0x4000, CRC(984b47f1) SHA1(fe66aa7189c54be6f94434a19e8fadb4434b3583) ) // encrypted, SLDH
+	ROM_LOAD( "epr-6770.96",    0x8000, 0x4000, CRC(e5a74f5f) SHA1(ccf18b424d4aaeec0bae1e6f096b4c176f6ab554) )
 
 	ROM_REGION( 0x10000, "soundcpu", 0 )
 	ROM_LOAD( "epr-6748.120",   0x0000, 0x2000, CRC(9325a1cf) SHA1(555d137b1c974b144ebe6593b4c32c97b3bb5de9) )
@@ -4671,9 +4644,9 @@ ROM_START( wbdeluxe )
 ROM_END
 
 
-ROM_START( gardia ) /* Factory conversion, Sega game ID# 834-6119-04 GARDIA (CVT) */
-	ROM_REGION( 0x20000, "maincpu", 0 ) /* These 3 EPROMs located on a Sega 834-5764 daughter card with a 315-5134 PAL? */
-	ROM_LOAD( "epr-10255.1",   0x00000, 0x8000, CRC(89282a6b) SHA1(f19e345e5fae6a518276cc1bd09d1e2083672b25) ) /* encrypted */
+ROM_START( gardia ) // Factory conversion, Sega game ID# 834-6119-04 GARDIA (CVT)
+	ROM_REGION( 0x20000, "maincpu", 0 ) // These 3 EPROMs located on a Sega 834-5764 daughter card with a 315-5134 PAL?
+	ROM_LOAD( "epr-10255.1",   0x00000, 0x8000, CRC(89282a6b) SHA1(f19e345e5fae6a518276cc1bd09d1e2083672b25) ) // encrypted
 	ROM_LOAD( "epr-10254.2",   0x10000, 0x8000, CRC(2826b6d8) SHA1(de1faf33cca031b72052bf5244fcb0bd79d85659) )
 	ROM_LOAD( "epr-10253.3",   0x18000, 0x8000, CRC(7911260f) SHA1(44196f0a6c4c2b22a68609ddfc75be6a7877a69a) )
 
@@ -4691,18 +4664,18 @@ ROM_START( gardia ) /* Factory conversion, Sega game ID# 834-6119-04 GARDIA (CVT
 	ROM_LOAD( "epr-10236.04",  0x10000, 0x8000, CRC(b35ab227) SHA1(616f6097afddffa9af89fe84d8b6df59c567c1e6) )
 	ROM_LOAD( "epr-10235.5",   0x18000, 0x8000, CRC(006a3151) SHA1(a575f9d5c026e6b18e990720ec7520b6b5ae94e3) )
 
-	ROM_REGION( 0x0300, "color_proms", 0 ) /* BPROMs located on a Sega 834-5755 daughter card (N82S129AN or equivalent) */
-	ROM_LOAD( "pr-7345.3",      0x0000, 0x0100, CRC(8eee0f72) SHA1(b5694c120f604a5f7cc95618a71ab16a1a6151ed) ) /* palette red component */
-	ROM_LOAD( "pr-7344.2",      0x0100, 0x0100, CRC(3e7babd7) SHA1(d4f8790db4dce75e27156a4c6de2dcef2baf6d76) ) /* palette green component */
-	ROM_LOAD( "pr-7343.1",      0x0200, 0x0100, CRC(371c44a6) SHA1(ac37458d1feb6566b09a795b20c21953d4ab109d) ) /* palette blue component */
+	ROM_REGION( 0x0300, "color_proms", 0 ) // BPROMs located on a Sega 834-5755 daughter card (N82S129AN or equivalent)
+	ROM_LOAD( "pr-7345.3",      0x0000, 0x0100, CRC(8eee0f72) SHA1(b5694c120f604a5f7cc95618a71ab16a1a6151ed) ) // palette red component
+	ROM_LOAD( "pr-7344.2",      0x0100, 0x0100, CRC(3e7babd7) SHA1(d4f8790db4dce75e27156a4c6de2dcef2baf6d76) ) // palette green component
+	ROM_LOAD( "pr-7343.1",      0x0200, 0x0100, CRC(371c44a6) SHA1(ac37458d1feb6566b09a795b20c21953d4ab109d) ) // palette blue component
 
-	ROM_REGION( 0x0100, "lookup_proms", 0 ) /* BPROM located on a Sega 834-5755 daughter card */
+	ROM_REGION( 0x0100, "lookup_proms", 0 ) // BPROM located on a Sega 834-5755 daughter card
 	ROM_LOAD( "pr5317.4",     0x0000, 0x0100, CRC(648350b8) SHA1(c7986aa9127ef5b50b845434cb4e81dff9861cd2) )
 ROM_END
 
 ROM_START( gardiab )
 	ROM_REGION( 0x20000, "maincpu", 0 )
-	ROM_LOAD( "gardiabl.5",   0x00000, 0x8000, CRC(207f9cbb) SHA1(647de15ac69a904344f3c18c9da8cefd626387db) ) /* encrypted */
+	ROM_LOAD( "gardiabl.5",   0x00000, 0x8000, CRC(207f9cbb) SHA1(647de15ac69a904344f3c18c9da8cefd626387db) ) // encrypted
 	ROM_LOAD( "gardiabl.6",   0x10000, 0x8000, CRC(b2ed05dc) SHA1(c520bf7024c85dc759c27eccb0a31998f4d72b5f) )
 	ROM_LOAD( "gardiabl.7",   0x18000, 0x8000, CRC(0a490588) SHA1(18df754ebdf062096f2d631a722b168901610345) )
 
@@ -4720,18 +4693,18 @@ ROM_START( gardiab )
 	ROM_LOAD( "epr-10236.04",  0x10000, 0x8000, CRC(b35ab227) SHA1(616f6097afddffa9af89fe84d8b6df59c567c1e6) )
 	ROM_LOAD( "epr-10235.5",   0x18000, 0x8000, CRC(006a3151) SHA1(a575f9d5c026e6b18e990720ec7520b6b5ae94e3) )
 
-	ROM_REGION( 0x0300, "color_proms", 0 ) /* BPROMs are N82S129AN or equivalent */
-	ROM_LOAD( "pr-7345.3",      0x0000, 0x0100, CRC(8eee0f72) SHA1(b5694c120f604a5f7cc95618a71ab16a1a6151ed) ) /* palette red component */
-	ROM_LOAD( "pr-7344.2",      0x0100, 0x0100, CRC(3e7babd7) SHA1(d4f8790db4dce75e27156a4c6de2dcef2baf6d76) ) /* palette green component */
-	ROM_LOAD( "pr-7343.1",      0x0200, 0x0100, CRC(371c44a6) SHA1(ac37458d1feb6566b09a795b20c21953d4ab109d) ) /* palette blue component */
+	ROM_REGION( 0x0300, "color_proms", 0 ) // BPROMs are N82S129AN or equivalent
+	ROM_LOAD( "pr-7345.3",      0x0000, 0x0100, CRC(8eee0f72) SHA1(b5694c120f604a5f7cc95618a71ab16a1a6151ed) ) // palette red component
+	ROM_LOAD( "pr-7344.2",      0x0100, 0x0100, CRC(3e7babd7) SHA1(d4f8790db4dce75e27156a4c6de2dcef2baf6d76) ) // palette green component
+	ROM_LOAD( "pr-7343.1",      0x0200, 0x0100, CRC(371c44a6) SHA1(ac37458d1feb6566b09a795b20c21953d4ab109d) ) // palette blue component
 
 	ROM_REGION( 0x0100, "lookup_proms", 0 )
 	ROM_LOAD( "pr5317.4",     0x0000, 0x0100, CRC(648350b8) SHA1(c7986aa9127ef5b50b845434cb4e81dff9861cd2) )
 ROM_END
 
-ROM_START( gardiaj ) /* Sega game ID# 834-6119-02 GARDIA */
+ROM_START( gardiaj ) // Sega game ID# 834-6119-02 GARDIA
 	ROM_REGION( 0x20000, "maincpu", 0 )
-	ROM_LOAD( "epr-10250.ic90",   0x00000, 0x8000, CRC(c97943a7) SHA1(eb201987c7a78f7eb6838211c0af3394c0b2d95f) ) /* encrypted */
+	ROM_LOAD( "epr-10250.ic90",   0x00000, 0x8000, CRC(c97943a7) SHA1(eb201987c7a78f7eb6838211c0af3394c0b2d95f) ) // encrypted
 	ROM_LOAD( "epr-10251.ic91",   0x10000, 0x8000, CRC(b2ed05dc) SHA1(c520bf7024c85dc759c27eccb0a31998f4d72b5f) )
 	ROM_LOAD( "epr-10252.ic92",   0x18000, 0x8000, CRC(0a490588) SHA1(18df754ebdf062096f2d631a722b168901610345) )
 
@@ -4749,17 +4722,17 @@ ROM_START( gardiaj ) /* Sega game ID# 834-6119-02 GARDIA */
 	ROM_LOAD( "epr-10236.ic89", 0x10000, 0x8000, CRC(b35ab227) SHA1(616f6097afddffa9af89fe84d8b6df59c567c1e6) )
 	ROM_LOAD( "epr-10235.ic88", 0x18000, 0x8000, CRC(006a3151) SHA1(a575f9d5c026e6b18e990720ec7520b6b5ae94e3) )
 
-	ROM_REGION( 0x0300, "color_proms", 0 ) /* BPROMs are N82S129AN or equivalent */
-	ROM_LOAD( "pr-7345.ic20",      0x0000, 0x0100, CRC(8eee0f72) SHA1(b5694c120f604a5f7cc95618a71ab16a1a6151ed) ) /* palette red component */
-	ROM_LOAD( "pr-7344.ic14",      0x0100, 0x0100, CRC(3e7babd7) SHA1(d4f8790db4dce75e27156a4c6de2dcef2baf6d76) ) /* palette green component */
-	ROM_LOAD( "pr-7343.ic8",       0x0200, 0x0100, CRC(371c44a6) SHA1(ac37458d1feb6566b09a795b20c21953d4ab109d) ) /* palette blue component */
+	ROM_REGION( 0x0300, "color_proms", 0 ) // BPROMs are N82S129AN or equivalent
+	ROM_LOAD( "pr-7345.ic20",      0x0000, 0x0100, CRC(8eee0f72) SHA1(b5694c120f604a5f7cc95618a71ab16a1a6151ed) ) // palette red component
+	ROM_LOAD( "pr-7344.ic14",      0x0100, 0x0100, CRC(3e7babd7) SHA1(d4f8790db4dce75e27156a4c6de2dcef2baf6d76) ) // palette green component
+	ROM_LOAD( "pr-7343.ic8",       0x0200, 0x0100, CRC(371c44a6) SHA1(ac37458d1feb6566b09a795b20c21953d4ab109d) ) // palette blue component
 
 	ROM_REGION( 0x0100, "lookup_proms", 0 )
-	ROM_LOAD( "pr5317.ic28",     0x0000, 0x0100, CRC(648350b8) SHA1(c7986aa9127ef5b50b845434cb4e81dff9861cd2) ) /* MB7114E */
+	ROM_LOAD( "pr5317.ic28",     0x0000, 0x0100, CRC(648350b8) SHA1(c7986aa9127ef5b50b845434cb4e81dff9861cd2) ) // MB7114E
 
 	ROM_REGION( 0x0400, "plds", 0 )
-	ROM_LOAD( "315-5137.bin",   0x00000, 0x0104, CRC(6ffd9e6f) SHA1(a60a3a2ec5bc256b18bfff0fec0172ee2e4fd955) ) /* TI PAL16R4A-2CN Located at IC10 */
-	ROM_LOAD( "315-5138.bin",   0x00000, 0x0104, CRC(dd223015) SHA1(8d70f91b118e8653dda1efee3eaea287ae63809f) ) /* TI PAL16R4ACN Located at IC11 */
+	ROM_LOAD( "315-5137.bin",   0x00000, 0x0104, CRC(6ffd9e6f) SHA1(a60a3a2ec5bc256b18bfff0fec0172ee2e4fd955) ) // TI PAL16R4A-2CN Located at IC10
+	ROM_LOAD( "315-5138.bin",   0x00000, 0x0104, CRC(dd223015) SHA1(8d70f91b118e8653dda1efee3eaea287ae63809f) ) // TI PAL16R4ACN Located at IC11
 ROM_END
 
 
@@ -5443,16 +5416,16 @@ ROM_START( nob )
 	ROM_LOAD( "dm07.5l", 0x18000, 0x8000, CRC(85e7a29f) SHA1(0ca77c66599650f157450d703682ec114f0453cf) )
 
 	ROM_REGION( 0x0300, "color_proms", 0 )
-	/* the first 2 proms were missing from the dump, but are clearly needed... */
-	ROM_LOAD( "nobo_pr.16d", 0x0000, 0x0100, CRC(95010ac2) SHA1(deaf84b408cd1f3396eb851ef04cc1654d5e9a46) ) /* palette red component */
-	ROM_LOAD( "nobo_pr.15d", 0x0100, 0x0100, CRC(c55aac0c) SHA1(0f7f2d383a90e9f7f319626b4d5565805f44a1f9) ) /* palette green component */
-	ROM_LOAD( "dm-12.ic3", 0x0200, 0x0100, CRC(de394cee) SHA1(511c53f22459e5e238b48685f85b10f5e15f2ac1) ) /* palette blue component */
+	// the first 2 proms were missing from the dump, but are clearly needed...
+	ROM_LOAD( "nobo_pr.16d", 0x0000, 0x0100, CRC(95010ac2) SHA1(deaf84b408cd1f3396eb851ef04cc1654d5e9a46) ) // palette red component
+	ROM_LOAD( "nobo_pr.15d", 0x0100, 0x0100, CRC(c55aac0c) SHA1(0f7f2d383a90e9f7f319626b4d5565805f44a1f9) ) // palette green component
+	ROM_LOAD( "dm-12.ic3", 0x0200, 0x0100, CRC(de394cee) SHA1(511c53f22459e5e238b48685f85b10f5e15f2ac1) ) // palette blue component
 
 	ROM_REGION( 0x0100, "lookup_proms", 0 )
 	ROM_LOAD( "dc-11.6a", 0x0000, 0x0100, CRC(648350b8) SHA1(c7986aa9127ef5b50b845434cb4e81dff9861cd2) )
 ROM_END
 
-/* the bootleg has different protection.. */
+// the bootleg has different protection..
 ROM_START( nobb )
 	ROM_REGION( 0x20000, "maincpu", 0 )
 	ROM_LOAD( "nobo-t.bin", 0x00000, 0x8000, CRC(176fd168) SHA1(f262521f07e5340f175019e2a06a54120a4aa3b7) )
@@ -5474,9 +5447,9 @@ ROM_START( nobb )
 	ROM_LOAD( "nobo-n.bin", 0x18000, 0x8000, CRC(85e7a29f) SHA1(0ca77c66599650f157450d703682ec114f0453cf) )
 
 	ROM_REGION( 0x0300, "color_proms", 0 )
-	ROM_LOAD( "nobo_pr.16d", 0x0000, 0x0100, CRC(95010ac2) SHA1(deaf84b408cd1f3396eb851ef04cc1654d5e9a46) ) /* palette red component */
-	ROM_LOAD( "nobo_pr.15d", 0x0100, 0x0100, CRC(c55aac0c) SHA1(0f7f2d383a90e9f7f319626b4d5565805f44a1f9) ) /* palette green component */
-	ROM_LOAD( "nobo_pr.14d", 0x0200, 0x0100, CRC(de394cee) SHA1(511c53f22459e5e238b48685f85b10f5e15f2ac1) ) /* palette blue component */
+	ROM_LOAD( "nobo_pr.16d", 0x0000, 0x0100, CRC(95010ac2) SHA1(deaf84b408cd1f3396eb851ef04cc1654d5e9a46) ) // palette red component
+	ROM_LOAD( "nobo_pr.15d", 0x0100, 0x0100, CRC(c55aac0c) SHA1(0f7f2d383a90e9f7f319626b4d5565805f44a1f9) ) // palette green component
+	ROM_LOAD( "nobo_pr.14d", 0x0200, 0x0100, CRC(de394cee) SHA1(511c53f22459e5e238b48685f85b10f5e15f2ac1) ) // palette blue component
 
 	ROM_REGION( 0x0100, "lookup_proms", 0 )
 	ROM_LOAD( "nobo_pr.13a", 0x0000, 0x0100, CRC(648350b8) SHA1(c7986aa9127ef5b50b845434cb4e81dff9861cd2) )
@@ -5565,9 +5538,11 @@ void system1_state::init_wbml()
 
 void system1_state::init_tokisens()
 {
-	// HACK otherwise player dies in attract mode and game gives a continue screen, probably the other Z80 timing kludges aren't quite accurate (or the encrypted CPU differs)
+	// HACK: otherwise player dies in attract mode and game gives a continue screen,
+	// probably the other Z80 timing kludges aren't quite accurate (or the encrypted CPU differs)
 	// could also be different screen refresh, or even just exactly when the first interrupt occurs
 	m_maincpu->set_clock_scale(1.07f);
+
 	init_wbml();
 }
 
@@ -5685,7 +5660,8 @@ GAME( 1984, mrvikingj,  mrviking, sys1ppisx_315_5041,mrvikingj, system1_state, e
 GAME( 1984, swat,       0,        sys1ppix_315_5048, swat,      system1_state, empty_init,        ROT270, "Coreland / Sega", "SWAT (315-5048)", MACHINE_SUPPORTS_SAVE )
 GAME( 1984, flickyo,    flicky,   sys1ppix_315_5051, flicky,    system1_state, empty_init,        ROT0,   "Sega", "Flicky (64k Version, 315-5051, set 1)", MACHINE_SUPPORTS_SAVE )
 GAME( 1984, flickys1,   flicky,   sys1ppix_315_5051, flickys1,  system1_state, empty_init,        ROT0,   "Sega", "Flicky (64k Version, 315-5051, set 2)", MACHINE_SUPPORTS_SAVE )
-GAME( 1984, flickyup,   flicky,   sys1ppix_315_5051, flicky,    system1_state, empty_init,        ROT0,   "Sega", "Flicky (64k Version, on Up'n Down boardset)", MACHINE_SUPPORTS_SAVE )
+GAME( 1984, flickyup,   flicky,   sys1ppix_315_5051, flicky,    system1_state, empty_init,        ROT0,   "Sega", "Flicky (64k Version, on Up'n Down boardset, set 1)", MACHINE_SUPPORTS_SAVE )
+GAME( 1984, flickyupa,  flicky,   sys1ppix_315_5051, flicky,    system1_state, empty_init,        ROT0,   "bootleg", "Flicky (64k Version, on Up'n Down boardset, set 2)", MACHINE_SUPPORTS_SAVE )
 GAME( 1984, wmatch,     0,        sys1ppisx_315_5064,wmatch,    system1_state, empty_init,        ROT270, "Sega", "Water Match (315-5064)", MACHINE_SUPPORTS_SAVE )
 GAME( 1984, bullfgt,    0,        sys1ppix_315_5065, bullfgt,   system1_state, empty_init,        ROT0,   "Coreland / Sega", "Bullfight (315-5065)", MACHINE_SUPPORTS_SAVE )
 GAME( 1985, nprinces,   seganinj, sys1ppix_315_5051, seganinj,  system1_state, empty_init,        ROT0,   "bootleg?", "Ninja Princess (315-5051, 64k Ver. bootleg?)", MACHINE_SUPPORTS_SAVE )
@@ -5703,9 +5679,9 @@ GAME( 1984, flicky,     0,        sys1piox_315_5051, flicky,    system1_state, e
 GAME( 1984, flickya,    flicky,   sys1piox_315_5051, flicky,    system1_state, empty_init,        ROT0,   "Sega", "Flicky (128k Version, 315-5051, larger roms)", MACHINE_SUPPORTS_SAVE )
 GAME( 1984, flickys2,   flicky,   sys1pio,           flickys2,  system1_state, empty_init,        ROT0,   "Sega", "Flicky (128k Version, not encrypted)", MACHINE_SUPPORTS_SAVE )
 GAME( 1984, thetogyu,   bullfgt,  sys1piox_315_5065, bullfgt,   system1_state, empty_init,        ROT0,   "Coreland / Sega", "The Togyu (315-5065, Japan)", MACHINE_SUPPORTS_SAVE )
-GAME( 1984, spatter,    0,        sys1piosx_315_spat,spatter,   system1_state, empty_init,        ROT0,   "Sega", "Spatter (315-5xxx)", MACHINE_SUPPORTS_SAVE )
+GAME( 1984, spatter,    0,        sys1piosx_315_5096,spatter,   system1_state, empty_init,        ROT0,   "Sega", "Spatter (315-5096)", MACHINE_SUPPORTS_SAVE )
 GAME( 1984, spattera,   spatter,  sys1piosx_315_5099,spatter,   system1_state, empty_init,        ROT0,   "Sega", "Spatter (315-5099)", MACHINE_SUPPORTS_SAVE )
-GAME( 1984, ssanchan,   spatter,  sys1piosx_315_spat,spatter,   system1_state, empty_init,        ROT0,   "Sega", "Sanrin San Chan (Japan, 315-5xxx)", MACHINE_SUPPORTS_SAVE )
+GAME( 1984, ssanchan,   spatter,  sys1piosx_315_5096,spatter,   system1_state, empty_init,        ROT0,   "Sega", "Sanrin San Chan (Japan, 315-5096)", MACHINE_SUPPORTS_SAVE )
 GAME( 1985, pitfall2,   0,        sys1piox_315_5093, pitfall2,  system1_state, empty_init,        ROT0,   "Sega", "Pitfall II (315-5093)", MACHINE_SUPPORTS_SAVE )
 GAME( 1985, pitfall2a,  pitfall2, sys1piox_315_5093, pitfall2,  system1_state, empty_init,        ROT0,   "Sega", "Pitfall II (315-5093, Flicky Conversion)", MACHINE_SUPPORTS_SAVE )
 GAME( 1985, pitfall2u,  pitfall2, sys1pio,           pitfall2u, system1_state, empty_init,        ROT0,   "Sega", "Pitfall II (not encrypted)", MACHINE_SUPPORTS_SAVE )
@@ -5719,6 +5695,7 @@ GAME( 1985, imsorry,    0,        sys1piox_315_5110, imsorry,   system1_state, e
 GAME( 1985, imsorryj,   imsorry,  sys1piox_315_5110, imsorry,   system1_state, empty_init,        ROT0,   "Coreland / Sega", "Gonbee no I'm Sorry (315-5110, Japan)", MACHINE_SUPPORTS_SAVE )
 GAME( 1985, teddybb,    0,        sys1piox_315_5155, teddybb,   system1_state, empty_init,        ROT0,   "Sega", "TeddyBoy Blues (315-5115, New Ver.)", MACHINE_SUPPORTS_SAVE )
 GAME( 1985, teddybbo,   teddybb,  sys1piox_315_5155, teddybb,   system1_state, empty_init,        ROT0,   "Sega", "TeddyBoy Blues (315-5115, Old Ver.)", MACHINE_SUPPORTS_SAVE )
+GAME( 1985, teddybboa,  teddybb,  sys1piox_315_5111, teddybb,   system1_state, empty_init,        ROT0,   "Sega", "TeddyBoy Blues (315-5111, Old Ver.)", MACHINE_SUPPORTS_SAVE )
 GAME( 1985, teddybbobl, teddybb,  sys1piox_315_5155, teddybb,   system1_state, empty_init,        ROT0,   "bootleg", "TeddyBoy Blues (Old Ver. bootleg)", MACHINE_SUPPORTS_SAVE )
 GAME( 1985, myhero,     0,        sys1pio,           myhero,    system1_state, empty_init,        ROT0,   "Coreland / Sega", "My Hero (US, not encrypted)", MACHINE_SUPPORTS_SAVE )
 GAME( 1985, sscandal,   myhero,   sys1piox_315_5132, myhero,    system1_state, empty_init,        ROT0,   "Coreland / Sega", "Seishun Scandal (315-5132, Japan)", MACHINE_SUPPORTS_SAVE )

@@ -1,5 +1,5 @@
 // license:GPL-2.0+
-// copyright-holders:Juergen Buchmueller
+// copyright-holders:Juergen Buchmueller, Angelo Salese
 /******************************************************************************
 
     Atari 400/800
@@ -11,8 +11,8 @@
 
 ******************************************************************************/
 
-#ifndef MAME_INCLUDES_ATARI400_H
-#define MAME_INCLUDES_ATARI400_H
+#ifndef MAME_ATARI_ATARI400_H
+#define MAME_ATARI_ATARI400_H
 
 #pragma once
 
@@ -66,4 +66,4 @@ protected:
 	void config_pal_screen(machine_config &config);
 };
 
-#endif // MAME_INCLUDES_ATARI400_H
+#endif // MAME_ATARI_ATARI400_H

@@ -1,7 +1,7 @@
 // license:BSD-3-Clause
 // copyright-holders:Nicola Salmoria
-#ifndef MAME_INCLUDES_TECMO_H
-#define MAME_INCLUDES_TECMO_H
+#ifndef MAME_TECMO_TECMO_H
+#define MAME_TECMO_TECMO_H
 
 #pragma once
 
@@ -90,7 +90,7 @@ private:
 	void flipscreen_w(uint8_t data);
 	void adpcm_start_w(uint8_t data);
 	void adpcm_vol_w(uint8_t data);
-	DECLARE_WRITE_LINE_MEMBER(adpcm_int);
+	void adpcm_int(int state);
 
 	TILE_GET_INFO_MEMBER(get_bg_tile_info);
 	TILE_GET_INFO_MEMBER(get_fg_tile_info);
@@ -109,4 +109,4 @@ private:
 	void backfirt_sound_map(address_map &map);
 };
 
-#endif // MAME_INCLUDES_TECMO_H
+#endif // MAME_TECMO_TECMO_H

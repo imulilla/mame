@@ -1,7 +1,7 @@
 // license:BSD-3-Clause
 // copyright-holders:Curt Coder
-#ifndef MAME_INCLUDES_HX20_H
-#define MAME_INCLUDES_HX20_H
+#ifndef MAME_EPSON_HX20_H
+#define MAME_EPSON_HX20_H
 
 #pragma once
 
@@ -90,10 +90,10 @@ private:
 	uint8_t slave_p4_r();
 	void slave_p4_w(uint8_t data);
 
-	DECLARE_WRITE_LINE_MEMBER( rtc_irq_w );
+	void rtc_irq_w(int state);
 
-	DECLARE_WRITE_LINE_MEMBER( sio_rx_w ) { m_sio_rx = state; }
-	DECLARE_WRITE_LINE_MEMBER( sio_pin_w ) { m_sio_pin = state; }
+	void sio_rx_w(int state) { m_sio_rx = state; }
+	void sio_pin_w(int state) { m_sio_pin = state; }
 
 	DECLARE_DEVICE_IMAGE_LOAD_MEMBER( optrom_load );
 	uint8_t optrom_r(offs_t offset);
@@ -124,4 +124,4 @@ private:
 	void cm6127_mem(address_map &map);
 };
 
-#endif // MAME_INCLUDES_HX20_H
+#endif // MAME_EPSON_HX20_H

@@ -1,7 +1,7 @@
 // license:BSD-3-Clause
 // copyright-holders:David Haywood
-#ifndef MAME_MACHINE_NES_VT_SOC_H
-#define MAME_MACHINE_NES_VT_SOC_H
+#ifndef MAME_NINTENDO_NES_VT_SOC_H
+#define MAME_NINTENDO_NES_VT_SOC_H
 
 #pragma once
 
@@ -125,7 +125,7 @@ protected:
 	std::unique_ptr<uint8_t[]> m_ntram;
 	std::unique_ptr<uint8_t[]> m_chrram;
 
-	DECLARE_WRITE_LINE_MEMBER(apu_irq);
+	void apu_irq(int state);
 	uint8_t apu_read_mem(offs_t offset);
 
 	uint8_t external_space_read(offs_t offset);
@@ -181,4 +181,4 @@ DECLARE_DEVICE_TYPE(NES_VT02_VT03_SOC, nes_vt02_vt03_soc_device)
 DECLARE_DEVICE_TYPE(NES_VT02_VT03_SOC_PAL, nes_vt02_vt03_soc_pal_device)
 DECLARE_DEVICE_TYPE(NES_VT02_VT03_SOC_SCRAMBLE, nes_vt02_vt03_soc_scramble_device)
 
-#endif // MAME_MACHINE_NES_VT_SOC_H
+#endif // MAME_NINTENDO_NES_VT_SOC_H

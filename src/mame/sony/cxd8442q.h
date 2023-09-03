@@ -8,8 +8,8 @@
  * to the APbus while providing DMA capabilities. Each FIFO chip can support up to 4 devices.
  */
 
-#ifndef MAME_MACHINE_CXD8442Q_H
-#define MAME_MACHINE_CXD8442Q_H
+#ifndef MAME_SONY_CXD8442Q_H
+#define MAME_SONY_CXD8442Q_H
 
 #pragma once
 
@@ -20,7 +20,7 @@ protected:
 	class apfifo_channel
 	{
 	public:
-		apfifo_channel(cxd8442q_device &fifo_device) : fifo_device(fifo_device), dma_r_callback(fifo_device), dma_w_callback(fifo_device)
+		apfifo_channel(cxd8442q_device &fifo_device) : fifo_device(fifo_device), dma_r_callback(fifo_device, 0), dma_w_callback(fifo_device)
 		{
 		}
 
@@ -59,12 +59,6 @@ protected:
 		auto dma_r_cb() { return dma_r_callback.bind(); }
 
 		auto dma_w_cb() { return dma_w_callback.bind(); }
-
-		void resolve_callbacks()
-		{
-			dma_r_callback.resolve_safe(0);
-			dma_w_callback.resolve_safe();
-		}
 
 		// Emulates the FIFO data port
 		uint32_t read_data_from_fifo();
@@ -118,10 +112,9 @@ protected:
 
 	TIMER_CALLBACK_MEMBER(fifo_dma_execute);
 
-	void device_resolve_objects() override;
 	void irq_check();
 
-	// device_t overrides
+	// device_t implementation
 	virtual void device_start() override;
 	virtual void device_reset() override;
 
@@ -144,4 +137,4 @@ protected:
 
 DECLARE_DEVICE_TYPE(CXD8442Q, cxd8442q_device)
 
-#endif // MAME_MACHINE_CXD8442Q_H
+#endif // MAME_SONY_CXD8442Q_H

@@ -75,6 +75,7 @@ To Do:
 #include "tilemap.h"
 
 
+namespace {
 
 /*************************************
  *
@@ -160,7 +161,7 @@ private:
 	virtual void video_start() override;
 
 	uint32_t screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
-	DECLARE_WRITE_LINE_MEMBER(screen_vblank);
+	void screen_vblank(int state);
 
 	TIMER_DEVICE_CALLBACK_MEMBER(scanline);
 	void master_io(address_map &map);
@@ -231,7 +232,7 @@ uint32_t hvyunit_state::screen_update(screen_device &screen, bitmap_ind16 &bitma
 	return 0;
 }
 
-WRITE_LINE_MEMBER(hvyunit_state::screen_vblank)
+void hvyunit_state::screen_vblank(int state)
 {
 	// rising edge
 	if (state)
@@ -809,6 +810,8 @@ ROM_START( hvyunitu )
 	ROM_REGION( 0x80000, "gfx2", 0 )
 	ROM_LOAD( "b73_09.2p",  0x000000, 0x080000, CRC(537c647f) SHA1(941c0f4e251bc68e53d62e70b033a3a6c145bb7e) )
 ROM_END
+
+} // anonymous namespace
 
 
 /*************************************

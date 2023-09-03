@@ -5,8 +5,8 @@
   Nintendo Donkey Kong hardware
 
 ***************************************************************************/
-#ifndef MAME_INCLUDES_DKONG_H
-#define MAME_INCLUDES_DKONG_H
+#ifndef MAME_NINTENDO_DKONG_H
+#define MAME_NINTENDO_DKONG_H
 
 #pragma once
 
@@ -133,8 +133,8 @@ public:
 	void ddk_braze(machine_config &config);
 	void dk3_braze(machine_config &config);
 	void strtheat(machine_config &config);
-	void spclforc(machine_config &config);
 	void s2650(machine_config &config);
+	void spclforc(machine_config &config);
 	void dkongjr(machine_config &config);
 	void radarscp1(machine_config &config);
 	void drktnjr(machine_config &config);
@@ -160,7 +160,7 @@ public:
 	void init_dkong3();
 	void init_dkong3hs();
 
-	DECLARE_WRITE_LINE_MEMBER(dk_braze_a15);
+	void dk_braze_a15(int state);
 
 private:
 	/* devices */
@@ -261,7 +261,7 @@ private:
 	uint8_t dkong_in2_r(offs_t offset);
 	uint8_t epos_decrypt_rom(offs_t offset);
 	void s2650_data_w(uint8_t data);
-	DECLARE_WRITE_LINE_MEMBER(s2650_fo_w);
+	void s2650_fo_w(int state);
 	uint8_t s2650_port0_r();
 	uint8_t s2650_port1_r();
 	void dkong3_2a03_reset_w(uint8_t data);
@@ -310,10 +310,10 @@ private:
 	uint32_t screen_update_dkong(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	uint32_t screen_update_pestplce(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	uint32_t screen_update_spclforc(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
-	DECLARE_WRITE_LINE_MEMBER(s2650_interrupt);
-	DECLARE_WRITE_LINE_MEMBER(vblank_irq);
+	void s2650_interrupt(int state);
+	void vblank_irq(int state);
 	TIMER_CALLBACK_MEMBER(scanline_callback);
-	DECLARE_WRITE_LINE_MEMBER(busreq_w);
+	void busreq_w(int state);
 
 	void braze_decrypt_rom(uint8_t *dest);
 	void dk_braze_decrypt();
@@ -333,11 +333,12 @@ private:
 	void dkongjr_sound_io_map(address_map &map);
 	void epos_readport(address_map &map);
 	void radarscp1_sound_io_map(address_map &map);
-	void s2650_data_map(address_map &map);
-	void s2650_io_map(address_map &map);
-	void s2650_map(address_map &map);
 
-private:
+	void s2650_map(address_map &map);
+	void s2650_io_map(address_map &map);
+	void s2650_data_map(address_map &map);
+	void spclforc_data_map(address_map &map);
+
 	// video/dkong.c
 	void radarscp_step(int line_cnt);
 	void radarscp_scanline(int scanline);
@@ -346,4 +347,4 @@ private:
 	void radarscp_draw_background(bitmap_ind16 &bitmap, const rectangle &cliprect);
 };
 
-#endif // MAME_INCLUDES_DKONG_H
+#endif // MAME_NINTENDO_DKONG_H

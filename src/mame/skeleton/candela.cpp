@@ -53,15 +53,14 @@
 //  MACROS / CONSTANTS
 //**************************************************************************
 
-//#define LOG_GENERAL (1U <<  0)
-#define LOG_SETUP   (1U <<  1)
-#define LOG_SCAN    (1U <<  2)
-#define LOG_BANK    (1U <<  3)
-#define LOG_SCREEN  (1U <<  4)
-#define LOG_READ    (1U <<  5)
-#define LOG_CS      (1U <<  6)
-#define LOG_PLA     (1U <<  7)
-#define LOG_PROM    (1U <<  8)
+#define LOG_SETUP   (1U << 1)
+#define LOG_SCAN    (1U << 2)
+#define LOG_BANK    (1U << 3)
+#define LOG_SCREEN  (1U << 4)
+#define LOG_READ    (1U << 5)
+#define LOG_CS      (1U << 6)
+#define LOG_PLA     (1U << 7)
+#define LOG_PROM    (1U << 8)
 
 //#define VERBOSE (LOG_READ | LOG_GENERAL | LOG_SETUP | LOG_PLA | LOG_BANK)
 //#define LOG_OUTPUT_FUNC printf
@@ -81,6 +80,9 @@
 #else
 #define FUNCNAME __PRETTY_FUNCTION__
 #endif
+
+
+namespace {
 
 #define PIA1_TAG "pia1"
 #define PIA2_TAG "pia2"
@@ -155,9 +157,9 @@ public:
 	uint8_t syspia_A_r();
 	uint8_t syspia_B_r();
 	void syspia_B_w(uint8_t data);
-	DECLARE_WRITE_LINE_MEMBER( syspia_cb2_w);
-	DECLARE_WRITE_LINE_MEMBER( usrpia_cb2_w);
-	DECLARE_WRITE_LINE_MEMBER (write_acia_clock);
+	void syspia_cb2_w(int state);
+	void usrpia_cb2_w(int state);
+	void write_acia_clock(int state);
 	void can09t(machine_config &config);
 	void can09t_map(address_map &map);
 protected:
@@ -442,17 +444,18 @@ void can09t_state::syspia_B_w(uint8_t data)
 	m_cass->output(BIT(data, 6) ? 1.0 : -1.0);
 }
 
-WRITE_LINE_MEMBER(can09t_state::syspia_cb2_w)
+void can09t_state::syspia_cb2_w(int state)
 {
 	LOG("%s(%02x)\n", FUNCNAME, state);
 }
 
-WRITE_LINE_MEMBER(can09t_state::usrpia_cb2_w)
+void can09t_state::usrpia_cb2_w(int state)
 {
 	LOG("%s(%02x)\n", FUNCNAME, state);
 }
 
-WRITE_LINE_MEMBER (can09t_state::write_acia_clock){
+void can09t_state::write_acia_clock(int state)
+{
 		m_acia->write_txc (state);
 		m_acia->write_rxc (state);
 }
@@ -521,7 +524,7 @@ protected:
 	void pia1_A_w(uint8_t data);
 	uint8_t pia1_B_r();
 	void pia1_B_w(uint8_t data);
-	DECLARE_WRITE_LINE_MEMBER( pia1_cb2_w);
+	void pia1_cb2_w(int state);
 	uint32_t screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	void can09_map(address_map &map);
 	required_device<pia6821_device> m_pia1;
@@ -620,7 +623,7 @@ void can09_state::pia1_B_w(uint8_t data)
 #endif
 }
 
-WRITE_LINE_MEMBER(can09_state::pia1_cb2_w)
+void can09_state::pia1_cb2_w(int state)
 {
 	LOG("%s(%02x)\n", FUNCNAME, state);
 }
@@ -813,6 +816,9 @@ ROM_START( can09 ) /* The bigger black computer CAN v1 */
 	ROM_REGION(0x10000, "roms", 0)
 	ROM_LOAD( "ic14-vdu42.bin", 0x0000, 0x2000, CRC(67fc3c8c) SHA1(1474d6259646798377ef4ce7e43d3c8d73858344) )
 ROM_END
+
+} // anonymous namespace
+
 
 //    YEAR  NAME    PARENT  COMPAT  MACHINE  INPUT   CLASS         INIT        COMPANY            FULLNAME            FLAGS
 COMP( 1984, can09,  0,      0,      can09,   can09,  can09_state,  empty_init, "Candela Data AB", "Candela CAN09 v1", MACHINE_NOT_WORKING | MACHINE_NO_SOUND_HW | MACHINE_IMPERFECT_GRAPHICS)

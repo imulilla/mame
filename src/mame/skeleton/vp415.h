@@ -38,8 +38,8 @@
 
 ***************************************************************************/
 
-#ifndef MAME_INCLUDES_VP415_H
-#define MAME_INCLUDES_VP415_H
+#ifndef MAME_SKELETON_VP415_H
+#define MAME_SKELETON_VP415_H
 
 #pragma once
 
@@ -87,7 +87,7 @@ private:
 	void sel34_w(uint8_t data);
 	uint8_t sel37_r();
 
-	DECLARE_WRITE_LINE_MEMBER(cpu_int1_w);
+	void cpu_int1_w(int state);
 
 	void data_mcu_port1_w(uint8_t data);
 	uint8_t data_mcu_port1_r();
@@ -115,7 +115,7 @@ private:
 	void drive_cpu_port1_w(uint8_t data);
 	void drive_cpu_port3_w(uint8_t data);
 
-	DECLARE_WRITE_LINE_MEMBER(refv_w);
+	void refv_w(int state);
 
 	// CPU Board enums
 	enum
@@ -277,4 +277,4 @@ private:
 	static const char *const SYNCGEN_TAG;
 };
 
-#endif // MAME_INCLUDES_VP415_H
+#endif // MAME_SKELETON_VP415_H

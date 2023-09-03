@@ -1,7 +1,7 @@
 // license:BSD-3-Clause
 // copyright-holders:David Haywood
-#ifndef MAME_MACHINE_BFM_BD1_H
-#define MAME_MACHINE_BFM_BD1_H
+#ifndef MAME_BFM_BFM_BD1_H
+#define MAME_BFM_BFM_BD1_H
 
 #pragma once
 
@@ -27,9 +27,9 @@ public:
 	void shift_clock(int state);
 	void setdata(int segdata, int data);
 	uint16_t set_display(uint16_t segin);
-	DECLARE_WRITE_LINE_MEMBER( sclk );
-	DECLARE_WRITE_LINE_MEMBER( data );
-	DECLARE_WRITE_LINE_MEMBER( por );
+	void sclk(int state);
+	void data(int state);
+	void por(int state);
 
 protected:
 	virtual void device_start() override;
@@ -70,4 +70,4 @@ private:
 
 DECLARE_DEVICE_TYPE(BFM_BD1, bfm_bd1_device)
 
-#endif // MAME_MACHINE_BFM_BD1_H
+#endif // MAME_BFM_BFM_BD1_H

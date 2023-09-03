@@ -6,8 +6,8 @@
 
 **********************************************************************/
 
-#ifndef MAME_MACHINE_HPC3_H
-#define MAME_MACHINE_HPC3_H
+#ifndef MAME_SGI_HPC3_H
+#define MAME_SGI_HPC3_H
 
 #pragma once
 
@@ -64,11 +64,10 @@ public:
 	void enet_rxrdy_w(int state);
 	void enet_intr_in_w(int state);
 
-	DECLARE_WRITE_LINE_MEMBER(scsi0_drq);
-	DECLARE_WRITE_LINE_MEMBER(scsi1_drq);
+	void scsi0_drq(int state);
+	void scsi1_drq(int state);
 
 protected:
-	virtual void device_resolve_objects() override;
 	virtual void device_start() override;
 	virtual void device_reset() override;
 
@@ -298,4 +297,4 @@ private:
 
 DECLARE_DEVICE_TYPE(SGI_HPC3, hpc3_device)
 
-#endif // MAME_MACHINE_HPC3_H
+#endif // MAME_SGI_HPC3_H

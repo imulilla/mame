@@ -113,6 +113,9 @@ Main board:
 #include "screen.h"
 #include "speaker.h"
 
+
+namespace {
+
 #define NVRAM_HACK
 
 
@@ -140,7 +143,7 @@ private:
 	void scroll_w(uint16_t data);
 	void via_a_out(uint8_t data);
 	void via_b_out(uint8_t data);
-	DECLARE_WRITE_LINE_MEMBER(via_ca2_out);
+	void via_ca2_out(int state);
 	uint8_t dips1_r();
 	void input_mux_w(uint8_t data);
 	void int_ack_w(uint8_t data);
@@ -246,7 +249,7 @@ void bmcbowl_state::via_b_out(uint8_t data)
 	//used
 }
 
-WRITE_LINE_MEMBER(bmcbowl_state::via_ca2_out)
+void bmcbowl_state::via_ca2_out(int state)
 {
 	//used
 }
@@ -522,7 +525,9 @@ ROM_START( bmcbowl )
 
 	ROM_REGION( 0x040000, "oki", 0 ) /* Samples */
 	ROM_LOAD( "bmc_10.bin", 0x00000, 0x20000,  CRC(f840c17f) SHA1(82891a85c8dc60f727b5a8c8e8ab09e8e4bd8af4) )
-
 ROM_END
+
+} // anonymous namespace
+
 
 GAME( 1994, bmcbowl, 0, bmcbowl, bmcbowl, bmcbowl_state, empty_init, ROT0, "BMC", "Konkyuu no Hoshi", MACHINE_IMPERFECT_GRAPHICS | MACHINE_SUPPORTS_SAVE)

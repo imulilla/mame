@@ -17,6 +17,8 @@
 #include "screen.h"
 
 
+namespace {
+
 class textelcomp_state : public driver_device
 {
 public:
@@ -39,8 +41,8 @@ private:
 	virtual void machine_start() override;
 	void keyscan_w(u8 data);
 	u8 keyboard_r();
-	DECLARE_WRITE_LINE_MEMBER(shift_data_w);
-	DECLARE_WRITE_LINE_MEMBER(shift_clock_w);
+	void shift_data_w(int state);
+	void shift_clock_w(int state);
 	void update_shift_output();
 	void rtc_w(u8 data);
 
@@ -87,12 +89,12 @@ u8 textelcomp_state::keyboard_r()
 	return m_keys[m_keyscan & 0x0f]->read();
 }
 
-WRITE_LINE_MEMBER(textelcomp_state::shift_data_w)
+void textelcomp_state::shift_data_w(int state)
 {
 	m_shift_data = state;
 }
 
-WRITE_LINE_MEMBER(textelcomp_state::shift_clock_w)
+void textelcomp_state::shift_clock_w(int state)
 {
 	if (state && !m_shift_clock)
 	{
@@ -381,6 +383,8 @@ ROM_START(a1010)
 	ROM_REGION(0x8000, "chargen", 0)
 	ROM_LOAD("chargen.bin", 0x0000, 0x8000, CRC(07daa70e) SHA1(8066a0ac238b06fbeeb99c3a2a8a9e70a27db7a9))
 ROM_END
+
+} // anonymous namespace
 
 
 COMP(1993, a1010, 0, 0, textelcomp, textelcomp, textelcomp_state, empty_init, "Humantechnik", "Textel Compact A1010-0", MACHINE_IS_SKELETON)

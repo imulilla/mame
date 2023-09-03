@@ -3,12 +3,12 @@
 /*
 
   Saitek Stratos family chess computers shared class
-  Used in: saitek_stratos.cpp (main driver), saitek_corona.cpp
+  Used in: stratos.cpp (main driver), corona.cpp
 
 */
 
-#ifndef MAME_INCLUDES_SAITEK_STRATOS_H
-#define MAME_INCLUDES_SAITEK_STRATOS_H
+#ifndef MAME_SAITEK_STRATOS_H
+#define MAME_SAITEK_STRATOS_H
 
 #pragma once
 
@@ -59,4 +59,4 @@ protected:
 
 INPUT_PORTS_EXTERN( saitek_stratos );
 
-#endif // MAME_INCLUDES_SAITEK_STRATOS_H
+#endif // MAME_SAITEK_STRATOS_H

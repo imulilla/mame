@@ -5,8 +5,8 @@
     Atari Crystal Castles hardware
 
 *************************************************************************/
-#ifndef MAME_INCLUDES_CCASTLES_H
-#define MAME_INCLUDES_CCASTLES_H
+#ifndef MAME_ATARI_CCASTLES_H
+#define MAME_ATARI_CCASTLES_H
 
 #pragma once
 
@@ -32,14 +32,14 @@ public:
 		m_palette(*this, "palette")
 	{ }
 
-	DECLARE_READ_LINE_MEMBER(vblank_r);
+	int vblank_r();
 	void ccastles(machine_config &config);
 
 protected:
 	void irq_ack_w(uint8_t data);
 	uint8_t leta_r(offs_t offset);
 	void nvram_recall_w(uint8_t data);
-	DECLARE_WRITE_LINE_MEMBER(nvram_store_w);
+	void nvram_store_w(int state);
 	uint8_t nvram_r(address_space &space, offs_t offset);
 	void nvram_w(offs_t offset, uint8_t data);
 	void ccastles_hscroll_w(uint8_t data);
@@ -94,4 +94,4 @@ private:
 	uint8_t    m_irq_state = 0U;
 };
 
-#endif // MAME_INCLUDES_CCASTLES_H
+#endif // MAME_ATARI_CCASTLES_H

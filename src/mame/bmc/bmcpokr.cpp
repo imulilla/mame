@@ -28,6 +28,9 @@ Other:  BMC B816140 (CPLD)
 #include "speaker.h"
 #include "tilemap.h"
 
+
+namespace {
+
 class bmcpokr_state : public driver_device
 {
 public:
@@ -44,7 +47,7 @@ public:
 		m_palette(*this, "palette")
 	{ }
 
-	DECLARE_READ_LINE_MEMBER(hopper_r);
+	int hopper_r();
 
 	void bmcpokr(machine_config &config);
 	void mjmaglmp(machine_config &config);
@@ -336,7 +339,7 @@ uint16_t bmcpokr_state::dsw_r()
 	return 0xff << 8;
 }
 
-READ_LINE_MEMBER(bmcpokr_state::hopper_r)
+int bmcpokr_state::hopper_r()
 {
 	// motor off should clear the sense bit (I guess ticket.c should actually do this).
 	// Otherwise a hopper bit stuck low will prevent several keys from being registered.
@@ -946,6 +949,9 @@ ROM_START( mjmaglmp )
 	ROM_REGION( 0x40000, "oki", 0 ) /* Samples */
 	ROM_LOAD( "ja-a-901.u6", 0x00000, 0x40000, CRC(25f36d00) SHA1(c182348340ca67ad69d1a67c58b47d6371a725c9) )
 ROM_END
+
+} // anonymous namespace
+
 
 GAME( 1999, bmcpokr,  0, bmcpokr,  bmcpokr,  bmcpokr_state, empty_init, ROT0, "BMC", "Dongfang Shenlong",             MACHINE_SUPPORTS_SAVE )
 GAME( 2000, mjmaglmp, 0, mjmaglmp, mjmaglmp, bmcpokr_state, empty_init, ROT0, "BMC", "Mahjong Magic Lamp (v. JAA02)", MACHINE_SUPPORTS_SAVE )

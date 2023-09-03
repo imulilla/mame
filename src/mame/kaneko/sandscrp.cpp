@@ -90,6 +90,8 @@ Is there another alt program rom set labeled 9 & 10?
 #include "speaker.h"
 
 
+namespace {
+
 class sandscrp_state : public driver_device
 {
 public:
@@ -132,7 +134,7 @@ private:
 	virtual void machine_start() override;
 
 	u32 screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
-	DECLARE_WRITE_LINE_MEMBER(screen_vblank);
+	void screen_vblank(int state);
 
 	INTERRUPT_GEN_MEMBER(interrupt);
 	void update_irq_state();
@@ -196,7 +198,7 @@ INTERRUPT_GEN_MEMBER(sandscrp_state::interrupt)
 }
 
 
-WRITE_LINE_MEMBER(sandscrp_state::screen_vblank)
+void sandscrp_state::screen_vblank(int state)
 {
 	// rising edge
 	if (state)
@@ -548,6 +550,8 @@ ROM_START( sandscrpb ) /* Different rev PCB */
 	ROM_REGION( 0x040000, "oki", 0 )    /* Samples */
 	ROM_LOAD( "7.ic55", 0x000000, 0x040000, CRC(9870ab12) SHA1(5ea3412cbc57bfaa32a1e2552b2eb46f4ceb5fa8) )
 ROM_END
+
+} // anonymous namespace
 
 
 GAME( 1992, sandscrp,  0,        sandscrp, sandscrp, sandscrp_state, empty_init, ROT90, "Face",   "Sand Scorpion", MACHINE_SUPPORTS_SAVE )

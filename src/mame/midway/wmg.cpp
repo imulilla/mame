@@ -78,6 +78,8 @@ of save-state is also needed.
 #include "speaker.h"
 
 
+namespace {
+
 #define MASTER_CLOCK        (XTAL(12'000'000))
 #define SOUND_CLOCK         (XTAL(3'579'545))
 
@@ -103,7 +105,7 @@ private:
 	void wmg_c400_w(u8 data);
 	void wmg_d000_w(u8 data);
 	void wmg_blitter_w(offs_t, u8);
-	DECLARE_WRITE_LINE_MEMBER(wmg_port_select_w);
+	void wmg_port_select_w(int state);
 	void wmg_sound_reset_w(u8 data);
 	void wmg_vram_select_w(u8 data);
 
@@ -456,7 +458,7 @@ void wmg_state::machine_reset()
  *
  *************************************/
 
-WRITE_LINE_MEMBER( wmg_state::wmg_port_select_w )
+void wmg_state::wmg_port_select_w(int state)
 {
 	m_wmg_port_select = state | (m_wmg_c400 << 1);
 }
@@ -585,6 +587,8 @@ ROM_START( wmg )
 	ROM_LOAD( "decoder.4",       0x0000, 0x0200, CRC(e6631c23) SHA1(9988723269367fb44ef83f627186a1c88cf7877e) )
 	ROM_LOAD( "decoder.6",       0x0200, 0x0200, CRC(83faf25e) SHA1(30002643d08ed983a6701a7c4b5ee74a2f4a1adb) )
 ROM_END
+
+} // anonymous namespace
 
 
 /*******************************************************

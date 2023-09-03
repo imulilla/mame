@@ -1,7 +1,7 @@
 // license:BSD-3-Clause
 // copyright-holders:Olivier Galibert
-#ifndef MAME_MACHINE_NAOMIGD_H
-#define MAME_MACHINE_NAOMIGD_H
+#ifndef MAME_SEGA_NAOMIGD_H
+#define MAME_SEGA_NAOMIGD_H
 
 #pragma once
 
@@ -31,7 +31,7 @@ public:
 	uint32_t ide_cs1_r(offs_t offset, uint32_t mem_mask = ~0);
 	void ide_cs0_w(offs_t offset, uint32_t data, uint32_t mem_mask = ~0);
 	void ide_cs1_w(offs_t offset, uint32_t data, uint32_t mem_mask = ~0);
-	DECLARE_WRITE_LINE_MEMBER(ide_irq);
+	void ide_irq(int state);
 
 protected:
 	virtual void device_start() override;
@@ -200,4 +200,4 @@ private:
 DECLARE_DEVICE_TYPE(NAOMI_GDROM_BOARD, naomi_gdrom_board)
 
 
-#endif // MAME_MACHINE_NAOMIGD_H
+#endif // MAME_SEGA_NAOMIGD_H

@@ -15,6 +15,9 @@
 #include "emupal.h"
 #include "screen.h"
 
+
+namespace {
+
 class ikt5a_state : public driver_device
 {
 public:
@@ -38,8 +41,8 @@ protected:
 private:
 	u32 screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 
-	DECLARE_WRITE_LINE_MEMBER(keyboard_clk_w);
-	DECLARE_WRITE_LINE_MEMBER(keyboard_data_w);
+	void keyboard_clk_w(int state);
+	void keyboard_data_w(int state);
 
 	void eeprom_w(u8 data);
 	void keyboard_ack_w(u8 data);
@@ -73,7 +76,7 @@ u32 ikt5a_state::screen_update(screen_device &screen, bitmap_rgb32 &bitmap, cons
 	return 0;
 }
 
-WRITE_LINE_MEMBER(ikt5a_state::keyboard_clk_w)
+void ikt5a_state::keyboard_clk_w(int state)
 {
 	if (m_keyboard_clk && !state)
 	{
@@ -85,7 +88,7 @@ WRITE_LINE_MEMBER(ikt5a_state::keyboard_clk_w)
 	m_keyboard_clk = state;
 }
 
-WRITE_LINE_MEMBER(ikt5a_state::keyboard_data_w)
+void ikt5a_state::keyboard_data_w(int state)
 {
 	m_keyboard_data = state;
 }
@@ -188,5 +191,8 @@ ROM_START(ikt5a) // 80C51 (+xtal 15.000) // 8k ram // RGB external, uses XT keyb
 	ROM_REGION(0x2000, "chargen", 0)
 	ROM_LOAD("g26.bin",      0x0000, 0x2000, CRC(657668be) SHA1(212a9eb1fb9b9c16f3cc606c6befbd913ddfa395))
 ROM_END
+
+} // anonymous namespace
+
 
 COMP(1993, ikt5a, 0, 0, ikt5a, ikt5a, ikt5a_state, empty_init, "Creator / Fura Elektronik", "IKT-5A", MACHINE_IS_SKELETON)

@@ -15,7 +15,7 @@
 #include "bus/psx/parallel.h"
 #include "cpu/m6805/m6805.h"
 #include "cpu/psx/psx.h"
-#include "imagedev/chd_cd.h"
+#include "imagedev/cdromimg.h"
 #include "imagedev/snapquik.h"
 #include "psxcd.h"
 #include "machine/ram.h"
@@ -466,10 +466,10 @@ QUICKLOAD_LOAD_MEMBER(psx1_state::quickload_exe)
 	if (image.fread(reinterpret_cast<void *>(&m_exe_buffer[0]), image.length()) != image.length())
 	{
 		m_exe_buffer.resize(0);
-		return image_init_result::FAIL;
+		return std::make_pair(image_error::UNSPECIFIED, std::string());
 	}
 
-	return image_init_result::PASS;
+	return std::make_pair(std::error_condition(), std::string());
 }
 
 void psx1_state::cd_dma_read( uint32_t *p_n_psxram, uint32_t n_address, int32_t n_size )
@@ -545,7 +545,7 @@ void psx1_state::psj(machine_config &config)
 void psx1_state::psu(machine_config &config)
 {
 	psj(config);
-	HD63705(config, "subcpu", 4166667).set_addrmap(AS_PROGRAM, &psx1_state::subcpu_map); // MC68HC05G6
+	HD63705Z0(config, "subcpu", 4166667).set_addrmap(AS_PROGRAM, &psx1_state::subcpu_map); // FIXME: actually MC68HC05G6
 }
 
 void psx1_state::pse(machine_config &config)

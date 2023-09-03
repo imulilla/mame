@@ -78,6 +78,9 @@ Merit Riviera Notes - There are several known versions:
 #include "screen.h"
 #include "speaker.h"
 
+
+namespace {
+
 #define MASTER_CLOCK            (XTAL(10'000'000))
 #define CPU_CLOCK               (MASTER_CLOCK / 4)
 #define PIXEL_CLOCK             (MASTER_CLOCK / 1)
@@ -122,7 +125,7 @@ public:
 	void init_key_2();
 	void init_dtrvwz5();
 
-	DECLARE_READ_LINE_MEMBER(rndbit_r);
+	int rndbit_r();
 
 private:
 	void dodge_nvram_init(nvram_device &nvram, void *base, size_t size);
@@ -133,7 +136,7 @@ private:
 	uint8_t palette_r(offs_t offset);
 	void palette_w(offs_t offset, uint8_t data);
 	void casino5_bank_w(uint8_t data);
-	DECLARE_WRITE_LINE_MEMBER(hsync_changed);
+	void hsync_changed(int state);
 	void led1_w(uint8_t data);
 	void led2_w(uint8_t data);
 	void misc_w(uint8_t data);
@@ -335,7 +338,7 @@ MC6845_UPDATE_ROW( merit_state::crtc_update_row )
 }
 
 
-WRITE_LINE_MEMBER(merit_state::hsync_changed)
+void merit_state::hsync_changed(int state)
 {
 	/* update any video up to the current scanline */
 //  m_screen->update_now();
@@ -404,7 +407,7 @@ void merit_state::casino5_bank_w(uint8_t data)
 	}
 }
 
-READ_LINE_MEMBER(merit_state::rndbit_r)
+int merit_state::rndbit_r()
 {
 	return machine().rand();
 }
@@ -2647,6 +2650,9 @@ void merit_state::init_dtrvwz5()
 
 	m_decryption_key = 6;
 }
+
+} // anonymous namespace
+
 
 /* Gambling type games */
 

@@ -1,7 +1,7 @@
 // license:BSD-3-Clause
 // copyright-holders:Mirko Buffoni
-#ifndef MAME_INCLUDES_SENJYO_H
-#define MAME_INCLUDES_SENJYO_H
+#ifndef MAME_TECMO_SENJYO_H
+#define MAME_TECMO_SENJYO_H
 
 #pragma once
 
@@ -111,7 +111,7 @@ private:
 	void bg3videoram_w(offs_t offset, uint8_t data);
 	void dac_volume_w(uint8_t data);
 	void dac_enable_w(uint8_t data);
-	DECLARE_WRITE_LINE_MEMBER(dac_clock_w);
+	void dac_clock_w(int state);
 	void irq_ctrl_w(uint8_t data);
 
 	static rgb_t IIBBGGRR(uint32_t raw);
@@ -137,4 +137,4 @@ private:
 };
 
 
-#endif // MAME_INCLUDES_SENJYO_H
+#endif // MAME_TECMO_SENJYO_H

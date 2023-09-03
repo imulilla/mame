@@ -32,6 +32,9 @@ When booted, press Key out (mapped to W by default) to get it going.
 
 #include "video21.lh"
 
+
+namespace {
+
 class video21_state : public driver_device
 {
 public:
@@ -45,7 +48,7 @@ public:
 	{ }
 
 	void video21(machine_config &config);
-	DECLARE_READ_LINE_MEMBER(hopper_coinout_r);
+	int hopper_coinout_r();
 
 protected:
 	virtual void machine_start() override;
@@ -165,7 +168,7 @@ void video21_state::io_map(address_map &map) {
 }
 
 
-READ_LINE_MEMBER(video21_state::hopper_coinout_r)
+int video21_state::hopper_coinout_r()
 {
 	return m_hopper_coin;
 }
@@ -296,5 +299,8 @@ ROM_START( video21 )
 	ROM_LOAD_NIB_HIGH( "29", 0x0000, 0x0400, CRC(2b70870d) SHA1(1f50a6976e1634020c78f10c1259e38f5e010a86) )
 	ROM_LOAD_NIB_LOW ( "43", 0x0000, 0x0400, CRC(0ecb0aab) SHA1(7f3f1b93a5d38828ae3e97e5f8ef1a6a96dc798b) )
 ROM_END
+
+} // anonymous namespace
+
 
 GAMEL(1980?, video21, 0, video21, video21, video21_state, empty_init, ROT0, "Video Games GmbH", "Video 21", MACHINE_IMPERFECT_SOUND | MACHINE_SUPPORTS_SAVE, layout_video21)

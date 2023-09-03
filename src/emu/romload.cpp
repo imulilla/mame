@@ -14,7 +14,9 @@
 #include "drivenum.h"
 #include "emuopts.h"
 #include "fileio.h"
+#include "main.h"
 #include "softlist_dev.h"
+
 #include "ui/uimain.h"
 
 #include "corestr.h"
@@ -359,7 +361,7 @@ std::error_condition rom_load_manager::set_disk_handle(std::string_view region, 
 
 /*-------------------------------------------------
     determine_bios_rom - determine system_bios
-    from SystemBios structure and OPTION_BIOS
+    from SYSTEM_BIOS structure and OPTION_BIOS
 -------------------------------------------------*/
 
 void rom_load_manager::determine_bios_rom(device_t &device, const char *specbios)

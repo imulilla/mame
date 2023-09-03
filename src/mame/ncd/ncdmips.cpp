@@ -20,6 +20,9 @@
 #include "machine/mc68681.h"
 #include "screen.h"
 
+
+namespace {
+
 class ncd_mips_state : public driver_device
 {
 public:
@@ -37,7 +40,7 @@ public:
 
 	uint32_t screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 
-	DECLARE_WRITE_LINE_MEMBER(duart_irq_handler);
+	void duart_irq_handler(int state);
 	INTERRUPT_GEN_MEMBER(vblank);
 
 private:
@@ -96,7 +99,7 @@ void ncd_mips_state::hmxpro_map(address_map &map)
 	map(0x20000000, 0x207fffff).ram();
 }
 
-WRITE_LINE_MEMBER(ncd_mips_state::duart_irq_handler)
+void ncd_mips_state::duart_irq_handler(int state)
 {
 	//m_maincpu->set_input_line(M68K_IRQ_6, state);
 }
@@ -130,6 +133,9 @@ ROM_START( hmxpro )
 	ROM_LOAD16_BYTE( "ncdhmx_bm_v2.7.2_b0e.bin", 0x000000, 0x020000, CRC(66072e5c) SHA1(a12dbd3befda55f755e684ba6e5c3b067f2ded93) )
 	ROM_LOAD16_BYTE( "ncdhmx_bm_v2.7.2_b0o.bin", 0x000001, 0x020000, CRC(7f7af795) SHA1(5b31bda8cb42dfb52869d29637fe415e43aa53f4) )
 ROM_END
+
+} // anonymous namespace
+
 
 //    YEAR  NAME     PARENT  COMPAT  MACHINE  INPUT    CLASS          INIT               COMPANY                 FULLNAME           FLAGS
 COMP( 1994, hmxpro, 0,      0,        hmxpro, hmxpro, ncd_mips_state,  empty_init,   "Network Computing Devices", "NCD HMX PRO", MACHINE_NOT_WORKING|MACHINE_NO_SOUND )

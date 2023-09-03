@@ -1,7 +1,7 @@
 // license:BSD-3-Clause
 // copyright-holders:David Haywood, Mike Coates
-#ifndef MAME_INCLUDES_SNOWBROS_H
-#define MAME_INCLUDES_SNOWBROS_H
+#ifndef MAME_KANEKO_SNOWBROS_H
+#define MAME_KANEKO_SNOWBROS_H
 
 #pragma once
 
@@ -101,7 +101,7 @@ private:
 	uint32_t screen_update_twinadv(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	uint32_t screen_update_snowbro3(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	uint32_t screen_update_wintbob(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
-	DECLARE_WRITE_LINE_MEMBER(screen_vblank_snowbros);
+	void screen_vblank_snowbros(int state);
 
 	TIMER_DEVICE_CALLBACK_MEMBER(snowbros_irq);
 	TIMER_DEVICE_CALLBACK_MEMBER(snowbros3_irq);
@@ -125,4 +125,4 @@ private:
 	void yutnori_map(address_map &map);
 };
 
-#endif // MAME_INCLUDES_SNOWBROS_H
+#endif // MAME_KANEKO_SNOWBROS_H

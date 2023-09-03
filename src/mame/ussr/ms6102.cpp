@@ -55,6 +55,8 @@
 #include "logmacro.h"
 
 
+namespace {
+
 class ms6102_state : public driver_device
 {
 public:
@@ -87,13 +89,13 @@ protected:
 private:
 	uint32_t screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 
-	template <unsigned N> DECLARE_WRITE_LINE_MEMBER(irq) { m_pic->r_w(N, state ? 0 : 1); }
+	template <unsigned N> void irq(int state) { m_pic->r_w(N, state ? 0 : 1); }
 
 	I8275_DRAW_CHARACTER_MEMBER(display_pixels);
 	I8275_DRAW_CHARACTER_MEMBER(display_attr);
 
-	DECLARE_WRITE_LINE_MEMBER(hrq_w);
-	DECLARE_WRITE_LINE_MEMBER(irq_w);
+	void hrq_w(int state);
+	void irq_w(int state);
 
 	void pic_w(u8 data);
 	IRQ_CALLBACK_MEMBER(ms6102_int_ack);
@@ -162,7 +164,7 @@ static GFXDECODE_START(gfx_ms6102)
 GFXDECODE_END
 
 
-WRITE_LINE_MEMBER(ms6102_state::hrq_w)
+void ms6102_state::hrq_w(int state)
 {
 	/* FIXME: this should be connected to the HOLD line of 8080 */
 	m_maincpu->set_input_line(INPUT_LINE_HALT, state);
@@ -171,7 +173,7 @@ WRITE_LINE_MEMBER(ms6102_state::hrq_w)
 	m_dma8257->hlda_w(state);
 }
 
-WRITE_LINE_MEMBER(ms6102_state::irq_w)
+void ms6102_state::irq_w(int state)
 {
 	m_maincpu->set_input_line(I8085_INTR_LINE, ASSERT_LINE);
 }
@@ -383,6 +385,9 @@ ROM_START( ms6102 )
 	ROM_REGION(0x0100, "charmap", 0)
 	ROM_LOAD("mc6102_02_k556rt4_d64",     0x0000, 0x0100, CRC(a59fdaa7) SHA1(0851a8b12e838e8f7e5ce840a0262facce303442))
 ROM_END
+
+} // anonymous namespace
+
 
 /* Driver */
 

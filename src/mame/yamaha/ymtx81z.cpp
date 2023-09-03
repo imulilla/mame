@@ -23,6 +23,9 @@
 
 #include "tx81z.lh"
 
+
+namespace {
+
 class ymtx81z_state : public driver_device
 {
 public:
@@ -45,8 +48,8 @@ private:
 	void mem_map(address_map &map);
 
 	u8 p2_r();
-	WRITE_LINE_MEMBER(midi_rx_r) { m_rx_data = state; }
-	WRITE_LINE_MEMBER(midiclock_w) { if (state) m_maincpu->m6801_clock_serial(); }
+	void midi_rx_r(int state) { m_rx_data = state; }
+	void midiclock_w(int state) { if (state) m_maincpu->m6801_clock_serial(); }
 
 	required_device<hd6303x_cpu_device> m_maincpu;
 	required_ioport m_port2;
@@ -185,5 +188,8 @@ ROM_START(tx81z)
 	ROM_SYSTEM_BIOS(6, "v10", "Version 1.0")
 	ROMX_LOAD("tx81z-27512-image-first-version-1_0.ic15", 0x00000, 0x10000, CRC(2f9628fa) SHA1(ce62dfb9a86da092c469fd25328b5447375f5bb2), ROM_BIOS(6))
 ROM_END
+
+} // anonymous namespace
+
 
 SYST(1987, tx81z, 0, 0, tx81z, tx81z, ymtx81z_state, empty_init, "Yamaha", "TX81Z FM Tone Generator", MACHINE_IMPERFECT_SOUND | MACHINE_CLICKABLE_ARTWORK)

@@ -43,6 +43,8 @@
 #include "apricotp.lh"
 
 
+namespace {
+
 //**************************************************************************
 //  MACROS / CONSTANTS
 //**************************************************************************
@@ -130,11 +132,11 @@ private:
 	void mem_w(offs_t offset, uint16_t data);
 	uint8_t prtr_snd_r();
 	void pint_clr_w(uint8_t data);
-	void ls_w(uint8_t data);
+	[[maybe_unused]] void ls_w(uint8_t data);
 	void contrast_w(uint8_t data);
 	void palette_w(uint8_t data);
 	void video_w(uint16_t data);
-	void lat_w(offs_t offset, uint8_t data);
+	[[maybe_unused]] void lat_w(offs_t offset, uint8_t data);
 
 	void lat_ls259_w(offs_t offset, int state);
 
@@ -149,10 +151,10 @@ private:
 	int m_centronics_fault;
 	int m_centronics_perror;
 
-	DECLARE_WRITE_LINE_MEMBER( write_centronics_busy );
-	DECLARE_WRITE_LINE_MEMBER( write_centronics_select );
-	DECLARE_WRITE_LINE_MEMBER( write_centronics_fault );
-	DECLARE_WRITE_LINE_MEMBER( write_centronics_perror );
+	void write_centronics_busy(int state);
+	void write_centronics_select(int state);
+	void write_centronics_fault(int state);
+	void write_centronics_perror(int state);
 
 	void fp_io(address_map &map);
 	void fp_mem(address_map &map);
@@ -500,23 +502,23 @@ INPUT_PORTS_END
 
 */
 
-WRITE_LINE_MEMBER( fp_state::write_centronics_busy )
+void fp_state::write_centronics_busy(int state)
 {
 	m_centronics_busy = state;
 	if (!state) m_pic->ir6_w(ASSERT_LINE);
 }
 
-WRITE_LINE_MEMBER( fp_state::write_centronics_select )
+void fp_state::write_centronics_select(int state)
 {
 	m_centronics_select = state;
 }
 
-WRITE_LINE_MEMBER( fp_state::write_centronics_fault )
+void fp_state::write_centronics_fault(int state)
 {
 	m_centronics_fault = state;
 }
 
-WRITE_LINE_MEMBER( fp_state::write_centronics_perror )
+void fp_state::write_centronics_perror(int state)
 {
 	m_centronics_perror = state;
 }
@@ -675,6 +677,7 @@ ROM_START( fp )
 	ROM_LOAD( "pal3 pal12l6.ic77", 0x000, 0x100, NO_DUMP ) // ?
 ROM_END
 
+} // anonymous namespace
 
 
 //**************************************************************************

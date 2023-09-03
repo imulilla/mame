@@ -1,7 +1,7 @@
 // license:BSD-3-Clause
 // copyright-holders:Steve Ellenoff, Pierpaolo Prazzoli, Angelo Salese
-#ifndef MAME_INCLUDES_PORTRAIT_H
-#define MAME_INCLUDES_PORTRAIT_H
+#ifndef MAME_OLYMPIA_PORTRAIT_H
+#define MAME_OLYMPIA_PORTRAIT_H
 
 #pragma once
 
@@ -24,6 +24,7 @@ public:
 		, m_fgvideoram(*this, "fgvideoram")
 		, m_spriteram(*this, "spriteram")
 		, m_lamps(*this, "lamp%u", 0U)
+		, m_photo(*this, "photo")
 	{ }
 
 	static constexpr feature_type unemulated_features() { return feature::CAMERA; }
@@ -31,7 +32,7 @@ public:
 	void portrait(machine_config &config);
 
 protected:
-	virtual void machine_start() override { m_lamps.resolve(); }
+	virtual void machine_start() override { m_lamps.resolve(); m_photo.resolve(); }
 	virtual void video_start() override;
 
 private:
@@ -61,10 +62,11 @@ private:
 	required_shared_ptr<uint8_t> m_fgvideoram;
 	required_shared_ptr<uint8_t> m_spriteram;
 	output_finder<2> m_lamps;
+	output_finder<> m_photo;
 
 	int m_scroll = 0;
 	tilemap_t *m_foreground = nullptr;
 	tilemap_t *m_background = nullptr;
 };
 
-#endif // MAME_INCLUDES_PORTRAIT_H
+#endif // MAME_OLYMPIA_PORTRAIT_H

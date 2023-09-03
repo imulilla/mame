@@ -50,6 +50,8 @@
 #include "speaker.h"
 
 
+namespace {
+
 class esqasr_state : public driver_device
 {
 public:
@@ -75,7 +77,7 @@ private:
 	virtual void machine_start() override;
 	virtual void machine_reset() override;
 
-	DECLARE_WRITE_LINE_MEMBER(esq5506_otto_irq);
+	void esq5506_otto_irq(int state);
 	u16 esq5506_read_adc();
 	void es5506_clock_changed(u32 data);
 
@@ -104,7 +106,7 @@ void esqasr_state::asrx_map(address_map &map)
 	map(0x0be00000, 0x0befffff).ram();
 }
 
-WRITE_LINE_MEMBER(esqasr_state::esq5506_otto_irq)
+void esqasr_state::esq5506_otto_irq(int state)
 {
 }
 
@@ -220,6 +222,9 @@ ROM_END
 void esqasr_state::init_asr()
 {
 }
+
+} // anonymous namespace
+
 
 CONS( 1992, asr10, 0, 0, asr, asr, esqasr_state, init_asr, "Ensoniq", "ASR-10", MACHINE_NOT_WORKING )
 CONS( 1997, asrx,  0, 0, asrx,asr, esqasr_state, init_asr, "Ensoniq", "ASR-X",  MACHINE_NOT_WORKING )

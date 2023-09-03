@@ -166,6 +166,8 @@ Notes: (All IC's shown)
 #include "speaker.h"
 
 
+namespace {
+
 #define Z80_TAG         "u1"
 #define DAVE_TAG        "u3"
 #define NICK_TAG        "u4"
@@ -222,7 +224,7 @@ private:
 
 	uint8_t m_key;
 
-	DECLARE_WRITE_LINE_MEMBER(write_centronics_busy);
+	void write_centronics_busy(int state);
 	int m_centronics_busy;
 	void dave_128k_mem(address_map &map);
 	void dave_64k_mem(address_map &map);
@@ -290,7 +292,7 @@ void ep64_state::wr0_w(uint8_t data)
 	m_cassette2->change_state(BIT(data, 7) ? CASSETTE_MOTOR_ENABLED : CASSETTE_MOTOR_DISABLED, CASSETTE_MASK_MOTOR);
 }
 
-WRITE_LINE_MEMBER( ep64_state::write_centronics_busy )
+void ep64_state::write_centronics_busy(int state)
 {
 	m_centronics_busy = state;
 }
@@ -679,6 +681,7 @@ ROM_START( ep128 )
 	ROM_LOAD( "9256ds-0019_enter08-45-a.u2", 0x0000, 0x8000, CRC(982a3b44) SHA1(55315b20fecb4441a07ee4bc5dc7153f396e0a2e) )
 ROM_END
 
+} // anonymous namespace
 
 
 //**************************************************************************

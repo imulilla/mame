@@ -1,7 +1,7 @@
 // license:BSD-3-Clause
 // copyright-holders:David Haywood
-#ifndef MAME_INCLUDES_XAVIX_2002_H
-#define MAME_INCLUDES_XAVIX_2002_H
+#ifndef MAME_TVGAMES_XAVIX_2002_H
+#define MAME_TVGAMES_XAVIX_2002_H
 
 #include "xavix_2000.h"
 
@@ -48,8 +48,8 @@ public:
 		: xavix_i2c_state(mconfig, type, tag)
 	{ }
 
-	DECLARE_READ_LINE_MEMBER(camera_r);
+	int camera_r();
 };
 
 
-#endif // MAME_INCLUDES_XAVIX_2002_H
+#endif // MAME_TVGAMES_XAVIX_2002_H

@@ -30,6 +30,8 @@
 #include "speaker.h"
 
 
+namespace {
+
 class ggconnie_state : public pce_common_state
 {
 public:
@@ -38,6 +40,7 @@ public:
 		, m_rtc(*this, "rtc")
 		, m_oki(*this, "oki")
 		, m_okibank(*this, "okibank")
+		, m_lamp(*this, "lamp")
 	{ }
 
 	void ggconnie(machine_config &config);
@@ -56,17 +59,20 @@ private:
 	required_device <msm6242_device> m_rtc;
 	required_device <okim6295_device> m_oki;
 	required_memory_bank m_okibank;
+	output_finder<> m_lamp;
 };
 
 
 void ggconnie_state::machine_start()
 {
+	m_lamp.resolve();
+
 	m_okibank->configure_entries(0, 8, memregion("oki")->base(), 0x10000);
 }
 
 void ggconnie_state::lamp_w(uint8_t data)
 {
-	output().set_value("lamp", !BIT(data,0));
+	m_lamp =!BIT(data, 0);
 }
 
 void ggconnie_state::output_w(uint8_t data)
@@ -402,6 +408,9 @@ ROM_START(fishingm)
 	ROM_LOAD( "gal16v8b.u7", 0x200, 0x117, NO_DUMP )
 	ROM_LOAD( "gal16v8b.u8", 0x400, 0x117, NO_DUMP )
 ROM_END
+
+} // anonymous namespace
+
 
 GAME( 1996, ggconnie, 0, ggconnie, ggconnie, ggconnie_state, init_pce_common, ROT0, "Eighting", "Go! Go! Connie chan Jaka Jaka Janken", MACHINE_IMPERFECT_SOUND | MACHINE_NOT_WORKING )
 GAME( 1997, smf,      0, ggconnie, smf,      ggconnie_state, init_pce_common, ROT0, "Eighting (Capcom license)", "Super Medal Fighters (Japan 970228)", MACHINE_IMPERFECT_SOUND | MACHINE_NOT_WORKING )

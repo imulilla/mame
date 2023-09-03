@@ -6,8 +6,8 @@
 
 ***************************************************************************/
 
-#ifndef MAME_MACHINE_ALPHA8201_H
-#define MAME_MACHINE_ALPHA8201_H
+#ifndef MAME_ALPHA_ALPHA8201_H
+#define MAME_ALPHA_ALPHA8201_H
 
 #include "cpu/hmcs40/hmcs40.h"
 
@@ -18,8 +18,8 @@ public:
 	~alpha_8201_device() {}
 
 	// external I/O
-	DECLARE_WRITE_LINE_MEMBER(bus_dir_w);
-	DECLARE_WRITE_LINE_MEMBER(mcu_start_w);
+	void bus_dir_w(int state);
+	void mcu_start_w(int state);
 	u8 ext_ram_r(offs_t offset);
 	void ext_ram_w(offs_t offset, u8 data);
 
@@ -51,4 +51,4 @@ private:
 DECLARE_DEVICE_TYPE(ALPHA_8201, alpha_8201_device)
 
 
-#endif // MAME_MACHINE_ALPHA8201_H
+#endif // MAME_ALPHA_ALPHA8201_H

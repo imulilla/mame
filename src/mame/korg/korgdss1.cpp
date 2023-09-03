@@ -24,6 +24,9 @@
 #include "emupal.h"
 #include "screen.h"
 
+
+namespace {
+
 class korg_dss1_state : public driver_device
 {
 public:
@@ -72,8 +75,8 @@ private:
 
 	void bank_switch_w(u8 data);
 	void panel_led_w(u8 data);
-	DECLARE_WRITE_LINE_MEMBER(fdc_tc_w);
-	DECLARE_WRITE_LINE_MEMBER(sed9420c_trgin_w);
+	void fdc_tc_w(int state);
+	void sed9420c_trgin_w(int state);
 	u8 fdc_r(offs_t offset);
 	void fdc_w(offs_t offset, u8 data);
 
@@ -155,7 +158,7 @@ void korg_dss1_state::panel_led_w(u8 data)
 	// TODO
 }
 
-WRITE_LINE_MEMBER(korg_dss1_state::fdc_tc_w)
+void korg_dss1_state::fdc_tc_w(int state)
 {
 	if (m_cpu1.found())
 		m_fdc->tc_w(state);
@@ -165,7 +168,7 @@ WRITE_LINE_MEMBER(korg_dss1_state::fdc_tc_w)
 	}
 }
 
-WRITE_LINE_MEMBER(korg_dss1_state::sed9420c_trgin_w)
+void korg_dss1_state::sed9420c_trgin_w(int state)
 {
 	// TODO
 }
@@ -576,6 +579,9 @@ ROM_START(dssmsrk)
 	ROM_REGION(0x10000, "msrk", 0)
 	ROM_LOAD("113003.u30", 0x00000, 0x10000, CRC(81b17db3) SHA1(af8a3167e06641d41b9b9e6e024335c2eb827274))
 ROM_END
+
+} // anonymous namespace
+
 
 SYST(1986, dss1,    0,    0, dss1,    dss1, korg_dss1_state,    empty_init, "Korg",               "DSS-1 Digital Sampling Synthesizer",                        MACHINE_IS_SKELETON)
 SYST(1987, dssmsrk, dss1, 0, dssmsrk, dss1, korg_dssmsrk_state, empty_init, "Korg / Sound Logic", "DSS-1 Digital Sampling Synthesizer (Memory/SCSI Retrofit)", MACHINE_IS_SKELETON)

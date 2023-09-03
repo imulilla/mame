@@ -45,8 +45,8 @@ mct_adr_device::mct_adr_device(const machine_config &mconfig, const char *tag, d
 	, m_out_int_dma(*this)
 	, m_out_int_device(*this)
 	, m_out_int_timer(*this)
-	, m_eisa_iack(*this)
-	, m_dma_r(*this)
+	, m_eisa_iack(*this, 0)
+	, m_dma_r(*this, 0xff)
 	, m_dma_w(*this)
 {
 }
@@ -103,7 +103,11 @@ void mct_adr_device::map(address_map &map)
 				m_dma_reg[reg] = data;
 
 				if ((reg == REG_ENABLE) && (data & DMA_ENABLE))
+				{
 					LOG("dma started address 0x%08x count %d\n", translate_address(m_dma_reg[(0 << 2) + REG_ADDRESS]), m_dma_reg[(0 << 2) + REG_COUNT]);
+					if (!m_dma_check->enabled())
+						m_dma_check->adjust(attotime::zero);
+				}
 			}, "dma_reg_w");
 	map(0x200, 0x207).lr32(NAME([this] () { return m_dma_interrupt_source; }));
 	map(0x208, 0x20f).lr32([] () { return 0; }, "error_type");
@@ -140,14 +144,6 @@ void mct_adr_device::dma(address_map &map)
 
 void mct_adr_device::device_start()
 {
-	m_out_int_dma.resolve();
-	m_out_int_device.resolve();
-	m_out_int_timer.resolve();
-	m_eisa_iack.resolve();
-
-	m_dma_r.resolve_all_safe(0xff);
-	m_dma_w.resolve_all_safe();
-
 	m_ioc_maint = 0;
 	m_ioc_physical_tag = 0;
 	m_ioc_logical_tag = 0;

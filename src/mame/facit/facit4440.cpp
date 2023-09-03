@@ -42,6 +42,9 @@
 #include "screen.h"
 #include "speaker.h"
 
+
+namespace {
+
 class facit4440_state : public driver_device
 {
 public:
@@ -73,7 +76,7 @@ private:
 	void control_6000_w(u8 data);
 	void control_a000_w(u8 data);
 
-	DECLARE_WRITE_LINE_MEMBER(vsync_w);
+	void vsync_w(int state);
 
 	MC6845_UPDATE_ROW(update_row);
 
@@ -145,7 +148,7 @@ u8 facit4440_state::misc_status_r()
 	return status;
 }
 
-WRITE_LINE_MEMBER(facit4440_state::vsync_w)
+void facit4440_state::vsync_w(int state)
 {
 	if (state && BIT(m_control_latch[0], 5))
 		m_maincpu->set_input_line(INPUT_LINE_NMI, ASSERT_LINE);
@@ -315,5 +318,8 @@ ROM_START(facit4440)
 	ROM_REGION(0x0800, "scanprom", 0)
 	ROM_LOAD("rom2.bin", 0x0000, 0x0800, CRC(9e1a190c) SHA1(fb08ee806f1056bcdfb5b08ea85995e1d3d01298))
 ROM_END
+
+} // anonymous namespace
+
 
 COMP(1984, facit4440, 0, 0, facit4440, facit4440, facit4440_state, empty_init, "Facit", "4440 Twist (30M-F1)", MACHINE_NOT_WORKING | MACHINE_IMPERFECT_GRAPHICS)

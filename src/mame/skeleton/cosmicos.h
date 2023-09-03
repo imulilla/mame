@@ -1,7 +1,7 @@
 // license:BSD-3-Clause
 // copyright-holders:Curt Coder
-#ifndef MAME_INCLUDES_COSMICOS_H
-#define MAME_INCLUDES_COSMICOS_H
+#ifndef MAME_SKELETON_COSMICOS_H
+#define MAME_SKELETON_COSMICOS_H
 
 #pragma once
 
@@ -89,15 +89,15 @@ private:
 	void sc_w(uint8_t data);
 	void set_cdp1802_mode(int mode);
 	void clear_input_data();
-	DECLARE_WRITE_LINE_MEMBER( dmaout_w );
-	DECLARE_WRITE_LINE_MEMBER( efx_w );
-	DECLARE_READ_LINE_MEMBER( wait_r );
-	DECLARE_READ_LINE_MEMBER( clear_r );
-	DECLARE_READ_LINE_MEMBER( ef1_r );
-	DECLARE_READ_LINE_MEMBER( ef2_r );
-	DECLARE_READ_LINE_MEMBER( ef3_r );
-	DECLARE_READ_LINE_MEMBER( ef4_r );
-	DECLARE_WRITE_LINE_MEMBER( q_w );
+	void dmaout_w(int state);
+	void efx_w(int state);
+	int wait_r();
+	int clear_r();
+	int ef1_r();
+	int ef2_r();
+	int ef3_r();
+	int ef4_r();
+	void q_w(int state);
 	DECLARE_QUICKLOAD_LOAD_MEMBER(quickload_cb);
 	TIMER_DEVICE_CALLBACK_MEMBER(digit_tick);
 	TIMER_DEVICE_CALLBACK_MEMBER(int_tick);
@@ -144,4 +144,4 @@ private:
 	output_finder<14> m_leds;
 };
 
-#endif // MAME_INCLUDES_COSMICOS_H
+#endif // MAME_SKELETON_COSMICOS_H

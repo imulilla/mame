@@ -5,8 +5,8 @@
     Cinemat/Leland driver
 
 *************************************************************************/
-#ifndef MAME_AUDIO_LELAND_H
-#define MAME_AUDIO_LELAND_H
+#ifndef MAME_CINEMATRONICS_LELAND_A_H
+#define MAME_CINEMATRONICS_LELAND_A_H
 
 #pragma once
 
@@ -34,13 +34,13 @@ public:
 	u8 response_r();
 	void dac_w(offs_t offset, u16 data, u16 mem_mask = ~0);
 	void ataxx_dac_control(offs_t offset, u16 data, u16 mem_mask = ~0);
-	DECLARE_WRITE_LINE_MEMBER(i80186_tmr0_w);
-	DECLARE_WRITE_LINE_MEMBER(i80186_tmr1_w);
+	void i80186_tmr0_w(int state);
+	void i80186_tmr1_w(int state);
 
-	DECLARE_WRITE_LINE_MEMBER(pit0_2_w);
-	DECLARE_WRITE_LINE_MEMBER(pit1_0_w);
-	DECLARE_WRITE_LINE_MEMBER(pit1_1_w);
-	DECLARE_WRITE_LINE_MEMBER(pit1_2_w);
+	void pit0_2_w(int state);
+	void pit1_0_w(int state);
+	void pit1_1_w(int state);
+	void pit1_2_w(int state);
 
 protected:
 	leland_80186_sound_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, u32 clock);
@@ -129,4 +129,4 @@ DECLARE_DEVICE_TYPE(REDLINE_80186, redline_80186_sound_device)
 DECLARE_DEVICE_TYPE(ATAXX_80186, ataxx_80186_sound_device)
 DECLARE_DEVICE_TYPE(WSF_80186, wsf_80186_sound_device)
 
-#endif // MAME_AUDIO_LELAND_H
+#endif // MAME_CINEMATRONICS_LELAND_A_H

@@ -40,6 +40,8 @@ Year  Game                         Manufacturer    Notes
 #include "tilemap.h"
 
 
+namespace {
+
 class igs009_state : public driver_device
 {
 public:
@@ -62,7 +64,7 @@ public:
 	void init_jingbell();
 	void init_jingbelli();
 
-	DECLARE_READ_LINE_MEMBER(hopper_r);
+	int hopper_r();
 
 protected:
 	virtual void machine_start() override;
@@ -81,7 +83,7 @@ private:
 	uint8_t magic_r();
 
 	void show_out();
-	DECLARE_WRITE_LINE_MEMBER(vblank_irq);
+	void vblank_irq(int state);
 
 	template<uint8_t Reel> TILE_GET_INFO_MEMBER(get_jingbell_reel_tile_info);
 	template<uint8_t Reel> TILE_GET_INFO_MEMBER(get_gp98_reel_tile_info);
@@ -283,7 +285,7 @@ uint32_t igs009_state::screen_update(screen_device &screen, bitmap_ind16 &bitmap
 ***************************************************************************/
 
 
-READ_LINE_MEMBER(igs009_state::hopper_r)
+int igs009_state::hopper_r()
 {
 	return m_hopper && !(m_screen->frame_number()%10);
 }
@@ -719,7 +721,7 @@ void igs009_state::machine_reset()
 	m_video_enable  =   1;
 }
 
-WRITE_LINE_MEMBER(igs009_state::vblank_irq)
+void igs009_state::vblank_irq(int state)
 {
 	if (state && BIT(m_nmi_enable, 7))
 		m_maincpu->pulse_input_line(INPUT_LINE_NMI, attotime::zero);
@@ -1074,6 +1076,8 @@ ROM_START( gp98 )
 	ROM_REGION( 0x40000, "oki", ROMREGION_ERASE00 )
 	// no OKI on this
 ROM_END
+
+} // anonymous namespace
 
 
 /*    YEAR   NAME       PARENT    MACHINE   INPUT     STATE          INIT            ROT   COMPANY           FULLNAME                      FLAGS  */

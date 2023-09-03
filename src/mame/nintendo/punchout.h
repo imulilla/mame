@@ -5,8 +5,8 @@
     Punch Out / Super Punch Out / Arm Wrestling
 
 ***************************************************************************/
-#ifndef MAME_INCLUDES_PUNCHOUT_H
-#define MAME_INCLUDES_PUNCHOUT_H
+#ifndef MAME_NINTENDO_PUNCHOUT_H
+#define MAME_NINTENDO_PUNCHOUT_H
 
 #pragma once
 
@@ -73,7 +73,7 @@ private:
 	void spunchout_exp_w(offs_t offset, uint8_t data);
 	void spunchout_rp5h01_reset_w(uint8_t data);
 	void spunchout_rp5h01_clock_w(uint8_t data);
-	DECLARE_WRITE_LINE_MEMBER(nmi_mask_w);
+	void nmi_mask_w(int state);
 	void punchout_bg_top_videoram_w(offs_t offset, uint8_t data);
 	void punchout_bg_bot_videoram_w(offs_t offset, uint8_t data);
 	void armwrest_fg_videoram_w(offs_t offset, uint8_t data);
@@ -95,7 +95,7 @@ private:
 	uint32_t screen_update_punchout_bottom(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	uint32_t screen_update_armwrest_top(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	uint32_t screen_update_armwrest_bottom(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
-	DECLARE_WRITE_LINE_MEMBER(vblank_irq);
+	void vblank_irq(int state);
 	void draw_big_sprite(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect, int palette);
 	void armwrest_draw_big_sprite(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect, int palette);
 	void drawbs2(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
@@ -109,4 +109,4 @@ private:
 	void spnchout_io_map(address_map &map);
 };
 
-#endif // MAME_INCLUDES_PUNCHOUT_H
+#endif // MAME_NINTENDO_PUNCHOUT_H

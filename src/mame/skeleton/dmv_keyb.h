@@ -6,8 +6,8 @@
 
 *********************************************************************/
 
-#ifndef MAME_MACHINE_DMV_KEYB_H
-#define MAME_MACHINE_DMV_KEYB_H
+#ifndef MAME_SKELETON_DMV_KEYB_H
+#define MAME_SKELETON_DMV_KEYB_H
 
 #pragma once
 
@@ -27,8 +27,8 @@ public:
 	// construction/destruction
 	dmv_keyboard_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock);
 
-	DECLARE_WRITE_LINE_MEMBER(sd_poll_w);
-	DECLARE_READ_LINE_MEMBER(sd_poll_r);
+	void sd_poll_w(int state);
+	int sd_poll_r();
 
 protected:
 	// device-level overrides
@@ -58,4 +58,4 @@ private:
 DECLARE_DEVICE_TYPE(DMV_KEYBOARD, dmv_keyboard_device)
 
 
-#endif // MAME_MACHINE_DMV_KEYB_H
+#endif // MAME_SKELETON_DMV_KEYB_H

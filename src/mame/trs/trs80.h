@@ -2,8 +2,8 @@
 // copyright-holders:Juergen Buchmueller, Robbbert
 //*****************************************************************************
 
-#ifndef MAME_INCLUDES_TRS80_H
-#define MAME_INCLUDES_TRS80_H
+#ifndef MAME_TRS_TRS80_H
+#define MAME_TRS_TRS80_H
 
 #pragma once
 
@@ -82,7 +82,7 @@ protected:
 	INTERRUPT_GEN_MEMBER(rtc_interrupt);
 	INTERRUPT_GEN_MEMBER(fdc_interrupt);
 	TIMER_CALLBACK_MEMBER(cassette_data_callback);
-	DECLARE_WRITE_LINE_MEMBER(intrq_w);
+	void intrq_w(int state);
 	DECLARE_QUICKLOAD_LOAD_MEMBER(quickload_cb);
 
 	u8 m_irq = 0U;
@@ -128,4 +128,4 @@ private:
 	static void floppy_formats(format_registration &fr);
 };
 
-#endif // MAME_INCLUDES_TRS80_H
+#endif // MAME_TRS_TRS80_H

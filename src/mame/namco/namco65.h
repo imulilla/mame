@@ -1,7 +1,7 @@
 // license:BSD-3-Clause
 // copyright-holders:David Haywood
-#ifndef MAME_MACHINE_NAMCO65_H
-#define MAME_MACHINE_NAMCO65_H
+#ifndef MAME_NAMCO_NAMCO65_H
+#define MAME_NAMCO_NAMCO65_H
 
 #pragma once
 
@@ -45,13 +45,12 @@ protected:
 	void mcu_map(address_map &map);
 
 	virtual void device_add_mconfig(machine_config &config) override;
-	virtual void device_resolve_objects() override;
 	virtual void device_start() override;
 	virtual const tiny_rom_entry *device_rom_region() const override;
 	virtual void device_reset() override;
 
 private:
-	required_device<hd63705_device> m_mcu;
+	required_device<hd63705z0_device> m_mcu;
 
 	devcb_read8        m_in_pb_cb;
 	devcb_read8        m_in_pc_cb;
@@ -91,4 +90,4 @@ private:
 	int m_mcu_analog_complete;
 };
 
-#endif // MAME_MACHINE_NAMCO65_H
+#endif // MAME_NAMCO_NAMCO65_H

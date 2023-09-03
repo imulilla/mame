@@ -27,6 +27,9 @@
 #include "screen.h"
 #include "speaker.h"
 
+
+namespace {
+
 class wy100_state : public driver_device
 {
 public:
@@ -50,8 +53,8 @@ protected:
 private:
 	I8275_DRAW_CHARACTER_MEMBER(draw_character);
 
-	DECLARE_WRITE_LINE_MEMBER(brdy_w);
-	DECLARE_WRITE_LINE_MEMBER(txd_w);
+	void brdy_w(int state);
+	void txd_w(int state);
 	void p2_w(u8 data);
 	u8 memory_r(offs_t offset);
 	void memory_w(offs_t offset, u8 data);
@@ -88,7 +91,7 @@ void wy100_state::machine_start()
 	save_item(NAME(m_printer_select));
 }
 
-WRITE_LINE_MEMBER(wy100_state::brdy_w)
+void wy100_state::brdy_w(int state)
 {
 	m_brdy = state;
 }
@@ -114,7 +117,7 @@ I8275_DRAW_CHARACTER_MEMBER(wy100_state::draw_character)
 		bitmap.pix(y, x + i) = BIT(dots, i < 1 || i > 8 ? 7 : 8 - i) ? fg : bg;
 }
 
-WRITE_LINE_MEMBER(wy100_state::txd_w)
+void wy100_state::txd_w(int state)
 {
 	m_txd = state;
 	if (m_printer_select)
@@ -259,6 +262,8 @@ ROM_START(wy100)
 	ROM_REGION(0x0800, "chargen", 0)
 	ROM_LOAD("wy100_23-002-01c.bin", 0x0000, 0x0800, CRC(93c31537) SHA1(085e5ad110a76bee83e819a718a7d4cbfb8e07e7))
 ROM_END
+
+} // anonymous namespace
 
 
 COMP(1981, wy100, 0, 0, wy100, wy100, wy100_state, empty_init, "Wyse Technology", "WY-100", MACHINE_NOT_WORKING | MACHINE_IMPERFECT_GRAPHICS)

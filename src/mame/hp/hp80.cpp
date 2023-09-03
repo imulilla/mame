@@ -125,6 +125,9 @@ namespace {
 	}
 }
 
+
+namespace {
+
 // **** Constants ****
 static constexpr unsigned CPU_CLOCK = 613000;
 // Time taken by hw timer updating (semi-made up) (in µsec)
@@ -991,7 +994,7 @@ private:
 	virtual void machine_reset() override;
 
 	uint32_t screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
-	DECLARE_WRITE_LINE_MEMBER(vblank_w);
+	void vblank_w(int state);
 
 	uint8_t crtc_r(offs_t offset);
 	void crtc_w(offs_t offset, uint8_t data);
@@ -1095,7 +1098,7 @@ uint32_t hp85_state::screen_update(screen_device &screen, bitmap_rgb32 &bitmap, 
 	return 0;
 }
 
-WRITE_LINE_MEMBER(hp85_state::vblank_w)
+void hp85_state::vblank_w(int state)
 {
 	COPY_BIT(!state , m_crt_sts , CRT_STS_DISPLAY_BIT);
 	if (state) {
@@ -1639,7 +1642,7 @@ protected:
 
 private:
 	uint32_t screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
-	DECLARE_WRITE_LINE_MEMBER(vblank_w);
+	void vblank_w(int state);
 	attotime time_to_video_mem_availability() const;
 
 	required_device<screen_device> m_screen;
@@ -1694,7 +1697,7 @@ private:
 	void emc_w(offs_t offset, uint8_t data);
 	uint32_t& get_ptr();
 	void ptr12_decrement();
-	DECLARE_WRITE_LINE_MEMBER(lma_cycle);
+	void lma_cycle(int state);
 	void opcode_cb(uint8_t opcode);
 };
 
@@ -1806,7 +1809,7 @@ uint32_t hp86_state::screen_update(screen_device &screen, bitmap_rgb32 &bitmap, 
 	return 0;
 }
 
-WRITE_LINE_MEMBER(hp86_state::vblank_w)
+void hp86_state::vblank_w(int state)
 {
 	COPY_BIT(state , m_crt_sts , 4);
 	if (state) {
@@ -2095,7 +2098,7 @@ void hp86_state::ptr12_decrement()
 	}
 }
 
-WRITE_LINE_MEMBER(hp86_state::lma_cycle)
+void hp86_state::lma_cycle(int state)
 {
 	m_lmard = state;
 	if (m_emc_state == EMC_INDIRECT_1) {
@@ -2437,6 +2440,9 @@ ROM_START(hp86b_004)
 	ROM_REGION(0x500 , "chargen" , 0)
 	ROM_LOAD("chrgen.bin" , 0 , 0x500 , CRC(c7d04292) SHA1(b86ed801ee9f7a57b259374b8a9810572cb03230))
 ROM_END
+
+} // anonymous namespace
+
 
 COMP( 1980, hp85,      0,     0, hp85, hp85,     hp85_state,     empty_init, "HP", "HP 85", 0)
 COMP( 1983, hp86b,     0,     0, hp86, hp86,     hp86_state,     empty_init, "HP", "HP 86B",0)

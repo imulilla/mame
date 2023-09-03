@@ -82,6 +82,9 @@ Status: Beeps every so often. Unable to read the disk.
 
 #include "utf8.h"
 
+
+namespace {
+
 class max80_state : public driver_device
 {
 public:
@@ -115,7 +118,7 @@ protected:
 
 private:
 	static void floppy_formats(format_registration &fr);
-	u8 keyboard_r(offs_t offset);
+	[[maybe_unused]] u8 keyboard_r(offs_t offset);
 	void beep_w(offs_t offset, u8 data);
 	void mode_w(offs_t offset, u8 data);
 	void drive_w(offs_t offset, u8 data);
@@ -124,8 +127,8 @@ private:
 	void pio_pa_w(offs_t offset, u8 data);
 	void pio_pb_w(offs_t offset, u8 data);
 
-	DECLARE_WRITE_LINE_MEMBER(intrq_w);
-	DECLARE_WRITE_LINE_MEMBER(drq_w);
+	void intrq_w(int state);
+	void drq_w(int state);
 	MC6845_UPDATE_ROW(crtc_update_row);
 	TIMER_DEVICE_CALLBACK_MEMBER(beep_timer);
 
@@ -313,12 +316,12 @@ void max80_state::drive_w(offs_t offset, u8 data)
 }
 
 
-WRITE_LINE_MEMBER(max80_state::intrq_w)
+void max80_state::intrq_w(int state)
 {
 	m_fdc_int = state;
 }
 
-WRITE_LINE_MEMBER(max80_state::drq_w)
+void max80_state::drq_w(int state)
 {
 	m_fdc_drq = state;
 	m_maincpu->set_input_line(INPUT_LINE_NMI, (state && m_allow_nmi) ? ASSERT_LINE : CLEAR_LINE);
@@ -506,6 +509,9 @@ ROM_START(max80)
 	ROM_REGION(0x0200, "maincpu",0)
 	ROM_LOAD("max80.e12", 0x0000, 0x0200, CRC(cf316f25) SHA1(78663711c6100a67ef18382284565feda2bbbf77) )
 ROM_END
+
+} // anonymous namespace
+
 
 //    YEAR  NAME      PARENT    COMPAT    MACHINE   INPUT     CLASS          INIT             COMPANY          FULLNAME               FLAGS
 COMP( 1982, max80,    0,        trs80l2,  max80,    max80,    max80_state, empty_init,    "Lobo Systems",      "MAX-80",        MACHINE_NOT_WORKING ) //| MACHINE_SUPPORTS_SAVE )

@@ -31,6 +31,8 @@
 #include "tilemap.h"
 
 
+namespace {
+
 //**************************************************************************
 //  TYPE DEFINITIONS
 //**************************************************************************
@@ -69,7 +71,7 @@ private:
 	TILE_GET_INFO_MEMBER(get_fg_tile_info);
 
 	void pia0_porta_w(uint8_t data);
-	DECLARE_WRITE_LINE_MEMBER(pia0_irq_w);
+	void pia0_irq_w(int state);
 	void pia1_porta_w(uint8_t data);
 	uint8_t pia1_portb_r();
 
@@ -428,11 +430,10 @@ void zwackery_state::pia0_porta_w(uint8_t data)
 	// bits 5 and 6 control hflip/vflip
 
 	// bit 7, watchdog
-	if (BIT(data, 7) == 0)
-		m_watchdog->watchdog_reset();
+	m_watchdog->reset_line_w(BIT(data, 7));
 }
 
-WRITE_LINE_MEMBER(zwackery_state::pia0_irq_w)
+void zwackery_state::pia0_irq_w(int state)
 {
 	int irq_state = m_pia0->irq_a_state() | m_pia0->irq_b_state();
 	m_maincpu->set_input_line(5, irq_state ? ASSERT_LINE : CLEAR_LINE);
@@ -589,6 +590,8 @@ ROM_START( zwackery )
 	ROM_LOAD( "pal.5c",    0x000a, 0x00001, NO_DUMP ) // HCT PAL
 	ROM_LOAD( "pal.5j",    0x000b, 0x00001, NO_DUMP ) // BGBDCD PAL
 ROM_END
+
+} // anonymous namespace
 
 
 //**************************************************************************

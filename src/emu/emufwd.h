@@ -14,6 +14,8 @@
 
 #pragma once
 
+#include "utilfwd.h"
+
 #include <type_traits>
 
 
@@ -37,24 +39,6 @@ class output_module;
 class osd_font;
 class osd_interface;
 class osd_midi_device;
-
-
-
-//----------------------------------
-// lib/util
-//----------------------------------
-
-// declared in aviio.h
-class avi_file;
-
-// declared in chd.h
-class chd_file;
-
-// declared in unzip.h
-namespace util { class archive_file; }
-
-// declared in xmlfile.h
-namespace util::xml { class data_node; class file; }
 
 
 
@@ -109,6 +93,7 @@ class devcb_base;
 template <typename Input, std::make_unsigned_t<Input> DefaultMask> class devcb_write;
 
 // declared in devfind.h
+class device_resolver_base;
 class finder_base;
 template <class DeviceClass, bool Required> class device_finder;
 
@@ -194,6 +179,9 @@ class running_machine;
 namespace emu::detail { class machine_config_replace; }
 struct internal_layout;
 class machine_config;
+
+// declared in main.h
+class machine_manager;
 
 // declared in natkeyboard.h
 class natural_keyboard;

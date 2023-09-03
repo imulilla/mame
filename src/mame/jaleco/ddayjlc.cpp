@@ -69,6 +69,8 @@ $842f = lives
 #include "tilemap.h"
 
 
+namespace {
+
 class ddayjlc_state : public driver_device
 {
 public:
@@ -113,7 +115,7 @@ private:
 	TILE_GET_INFO_MEMBER(get_tile_info_fg);
 	void ddayjlc_palette(palette_device &palette) const;
 	uint32_t screen_update_ddayjlc(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
-	DECLARE_WRITE_LINE_MEMBER(vblank_irq);
+	void vblank_irq(int state);
 	void main_map(address_map &map);
 	void sound_map(address_map &map);
 
@@ -524,7 +526,7 @@ static GFXDECODE_START( gfx_ddayjlc )
 	GFXDECODE_ENTRY( "gfx3", 0, charlayout,     0x100, 16 )
 GFXDECODE_END
 
-WRITE_LINE_MEMBER(ddayjlc_state::vblank_irq)
+void ddayjlc_state::vblank_irq(int state)
 {
 	if (state && m_main_nmi_enable)
 		m_maincpu->set_input_line(INPUT_LINE_NMI, ASSERT_LINE);
@@ -731,6 +733,9 @@ void ddayjlc_state::init_ddayjlc()
 	membank("bank1")->configure_entries(0, 3, memregion("user1")->base(), 0x4000);
 	membank("bank1")->set_entry(0);
 }
+
+} // anonymous namespace
+
 
 GAME( 1984, ddayjlc,  0,       ddayjlc, ddayjlc, ddayjlc_state, init_ddayjlc, ROT90, "Jaleco", "D-Day (Jaleco set 1)", MACHINE_IMPERFECT_GRAPHICS | MACHINE_IMPERFECT_SOUND | MACHINE_SUPPORTS_SAVE )
 GAME( 1984, ddayjlca, ddayjlc, ddayjlc, ddayjlc, ddayjlc_state, init_ddayjlc, ROT90, "Jaleco", "D-Day (Jaleco set 2)", MACHINE_IMPERFECT_GRAPHICS | MACHINE_IMPERFECT_SOUND | MACHINE_SUPPORTS_SAVE )

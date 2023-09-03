@@ -5,8 +5,8 @@
     Star Fire/Fire One system
 
 ***************************************************************************/
-#ifndef MAME_INCLUDES_STARFIRE_H
-#define MAME_INCLUDES_STARFIRE_H
+#ifndef MAME_EXIDY_STARFIRE_H
+#define MAME_EXIDY_STARFIRE_H
 
 #pragma once
 
@@ -169,9 +169,9 @@ private:
 	required_device<pit8253_device> m_pit;
 	required_ioport_array<2> m_controls;
 
-	DECLARE_WRITE_LINE_MEMBER(music_a_out_cb);
-	DECLARE_WRITE_LINE_MEMBER(music_b_out_cb);
-	DECLARE_WRITE_LINE_MEMBER(music_c_out_cb);
+	void music_a_out_cb(int state);
+	void music_b_out_cb(int state);
+	void music_c_out_cb(int state);
 
 	virtual uint8_t input_r(offs_t offset) override;
 	virtual void sound_w(offs_t offset, uint8_t data) override;
@@ -199,4 +199,4 @@ private:
 	required_device<netlist_mame_logic_input_device> m_music_c;
 };
 
-#endif // MAME_INCLUDES_STARFIRE_H
+#endif // MAME_EXIDY_STARFIRE_H

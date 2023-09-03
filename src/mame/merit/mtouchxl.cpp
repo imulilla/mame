@@ -31,7 +31,7 @@
 
 #include "emu.h"
 #include "bus/ata/atapicdr.h"
-#include "bus/ata/idehd.h"
+#include "bus/ata/hdd.h"
 #include "bus/isa/isa_cards.h"
 #include "cpu/i386/i386.h"
 #include "machine/at.h"
@@ -49,6 +49,9 @@
 #endif
 #include "sound/ad1848.h"
 #include "speaker.h"
+
+
+namespace {
 
 class mtxl_state : public driver_device
 {
@@ -491,6 +494,9 @@ ROM_START( mtchxlti )
 	DISK_REGION("board1:ide:ide:0:hdd")
 	DISK_IMAGE_READONLY("r00", 0, SHA1(8e9a2f9e670f02139cee11b7e8f758639d8b2838))
 ROM_END
+
+} // anonymous namespace
+
 
 /***************************************************************************
 

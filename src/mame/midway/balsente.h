@@ -7,8 +7,8 @@
     driver by Aaron Giles
 
 ***************************************************************************/
-#ifndef MAME_INCLUDES_BALSENTE_H
-#define MAME_INCLUDES_BALSENTE_H
+#ifndef MAME_MIDWAY_BALSENTE_H
+#define MAME_MIDWAY_BALSENTE_H
 
 #pragma once
 
@@ -104,14 +104,14 @@ private:
 	uint8_t random_num_r();
 	void rombank_select_w(uint8_t data);
 	void rombank2_select_w(uint8_t data);
-	DECLARE_WRITE_LINE_MEMBER(out0_w);
-	DECLARE_WRITE_LINE_MEMBER(out1_w);
-	DECLARE_WRITE_LINE_MEMBER(out2_w);
-	DECLARE_WRITE_LINE_MEMBER(out3_w);
-	DECLARE_WRITE_LINE_MEMBER(out4_w);
-	DECLARE_WRITE_LINE_MEMBER(out5_w);
-	DECLARE_WRITE_LINE_MEMBER(out6_w);
-	DECLARE_WRITE_LINE_MEMBER(nvrecall_w);
+	void out0_w(int state);
+	void out1_w(int state);
+	void out2_w(int state);
+	void out3_w(int state);
+	void out4_w(int state);
+	void out5_w(int state);
+	void out6_w(int state);
+	void nvrecall_w(int state);
 	uint8_t novram_8bit_r(address_space &space, offs_t offset);
 	void novram_8bit_w(offs_t offset, uint8_t data);
 	uint8_t adc_data_r();
@@ -209,4 +209,4 @@ private:
 	required_memory_bank m_bankef;
 };
 
-#endif // MAME_INCLUDES_BALSENTE_H
+#endif // MAME_MIDWAY_BALSENTE_H
