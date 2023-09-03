@@ -67,7 +67,7 @@ psxcard_device::psxcard_device(const machine_config &mconfig, const char *tag, d
 void psxcard_device::device_start()
 {
 	m_owner = dynamic_cast<psx_controller_port_device *>(owner());
-	m_ack_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(psxcard_device::ack_timer), this));
+	m_ack_timer = timer_alloc(FUNC(psxcard_device::ack_timer), this);
 
 	m_ack = true;
 	m_disabled = false;
@@ -295,38 +295,34 @@ unsigned char psxcard_device::checksum_data(const unsigned char *buf, const unsi
 	return chk;
 }
 
-image_init_result psxcard_device::call_load()
+std::pair<std::error_condition, std::string> psxcard_device::call_load()
 {
 	if(m_disabled)
-	{
-		logerror("psxcard: port disabled\n");
-		return image_init_result::FAIL;
-	}
+		return std::make_pair(image_error::UNSUPPORTED, "Memory card port is disabled");
 
 	if(length() != card_size)
-		return image_init_result::FAIL;
-	return image_init_result::PASS;
+	{
+		return std::make_pair(
+				image_error::INVALIDLENGTH,
+				util::string_format("Unsupported memory card size (must be %u bytes)", card_size));
+	}
+	return std::make_pair(std::error_condition(), std::string());
 }
 
-image_init_result psxcard_device::call_create(int format_type, util::option_resolution *format_options)
+std::pair<std::error_condition, std::string> psxcard_device::call_create(int format_type, util::option_resolution *format_options)
 {
-	uint8_t block[block_size];
-	int i, ret;
-
 	if(m_disabled)
-	{
-		logerror("psxcard: port disabled\n");
-		return image_init_result::FAIL;
-	}
+		return std::make_pair(image_error::UNSUPPORTED, "Memory card port is disabled");
 
+	uint8_t block[block_size];
 	memset(block, '\0', block_size);
-	for(i = 0; i < (card_size/block_size); i++)
+	for(int i = 0; i < (card_size/block_size); i++)
 	{
-		ret = fwrite(block, block_size);
+		auto const ret = fwrite(block, block_size);
 		if(ret != block_size)
-			return image_init_result::FAIL;
+			return std::make_pair(image_error::UNSPECIFIED, std::string());
 	}
-	return image_init_result::PASS;
+	return std::make_pair(std::error_condition(), std::string());
 }
 
 void psxcard_device::do_card()

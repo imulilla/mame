@@ -8,7 +8,7 @@
 #include "vme.h"
 
 #include "bus/rs232/rs232.h"
-#include "cpu/m68000/m68000.h"
+#include "cpu/m68000/m68030.h"
 #include "machine/68153bim.h"
 #include "machine/68230pit.h"
 #include "machine/68561mpcc.h"
@@ -32,10 +32,11 @@ protected:
 	virtual void device_add_mconfig(machine_config &config) override;
 	virtual const tiny_rom_entry *device_rom_region() const override;
 	virtual ioport_constructor device_input_ports() const override;
-	virtual void device_timer(emu_timer &timer, device_timer_id id, int param) override;
+
+	TIMER_CALLBACK_MEMBER(bus_error_off);
 
 private:
-	required_device<m68000_base_device> m_maincpu;
+	required_device<m68000_musashi_device> m_maincpu;
 	required_device<bim68153_device> m_bim;
 	required_device<mpcc68561_device> m_mpcc;
 	required_device<rtc62421_device> m_rtc;
@@ -52,7 +53,7 @@ private:
 	uint8_t bim_irq_state;
 	int bim_irq_level;
 
-	DECLARE_WRITE_LINE_MEMBER(bim_irq_callback);
+	void bim_irq_callback(int state);
 	void update_irq_to_maincpu();
 
 	void pit1_pb_w(uint8_t data);

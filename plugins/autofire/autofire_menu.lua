@@ -157,8 +157,8 @@ local function populate_configure_menu(menu)
 		configure_selection_save = #menu
 	end
 	table.insert(menu, {_p('plugin-autofire', 'Hotkey'), key_name, hotkey_poller and 'lr' or ''})
-	table.insert(menu, {_p('plugin-autofire', 'On frames'), current_button.on_frames, current_button.on_frames > 1 and 'lr' or 'r'})
-	table.insert(menu, {_p('plugin-autofire', 'Off frames'), current_button.off_frames, current_button.off_frames > 1 and 'lr' or 'r'})
+	table.insert(menu, {_p('plugin-autofire', 'On frames'), tostring(current_button.on_frames), current_button.on_frames > 1 and 'lr' or 'r'})
+	table.insert(menu, {_p('plugin-autofire', 'Off frames'), tostring(current_button.off_frames), current_button.off_frames > 1 and 'lr' or 'r'})
 	configure_menu_active = true
 end
 
@@ -248,7 +248,7 @@ end
 
 local function handle_edit_menu(index, event, buttons)
 	local section, adjusted_index = menu_section(index)
-	if ((section == MENU_SECTIONS.FOOTER) and (event == 'select')) or (event == 'cancel') then
+	if ((section == MENU_SECTIONS.FOOTER) and (event == 'select')) or (event == 'back') then
 		configure_menu_active = false
 		table.remove(menu_stack)
 		return true
@@ -285,7 +285,7 @@ end
 
 local function handle_add_menu(index, event, buttons)
 	local section, adjusted_index = menu_section(index)
-	if ((section == MENU_SECTIONS.FOOTER) and (event == 'select')) or (event == 'cancel') then
+	if ((section == MENU_SECTIONS.FOOTER) and (event == 'select')) or (event == 'back') then
 		configure_menu_active = false
 		table.remove(menu_stack)
 		if is_button_complete(current_button) and (event == 'select') then

@@ -97,10 +97,10 @@ public:
 	}
 
 	// timing information
-	attotime time_elapsed() const { return m_timer->elapsed(); }
-	attotime time_left() const { return m_timer->remaining(); }
-	attotime start_time() const { return m_timer->start(); }
-	attotime fire_time() const { return m_timer->expire(); }
+	attotime elapsed() const { return m_timer->elapsed(); }
+	attotime remaining() const { return m_timer->remaining(); }
+	attotime start() const { return m_timer->start(); }
+	attotime expire() const { return m_timer->expire(); }
 	attotime period() const { return m_timer ? m_timer->period() : m_period; }
 
 private:
@@ -108,7 +108,9 @@ private:
 	virtual void device_validity_check(validity_checker &valid) const override;
 	virtual void device_start() override;
 	virtual void device_reset() override;
-	virtual void device_timer(emu_timer &timer, device_timer_id id, int param) override;
+
+	TIMER_CALLBACK_MEMBER(generic_tick);
+	TIMER_CALLBACK_MEMBER(scanline_tick);
 
 	// timer types
 	enum timer_type

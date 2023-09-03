@@ -42,9 +42,11 @@
 
 #include "emu.h"
 #include "ctrl.h"
+
 // slot devices
 #include "4score.h"
 #include "arkpaddle.h"
+#include "bandaihs.h"
 #include "bcbattle.h"
 #include "dorepiano.h"
 #include "fckeybrd.h"
@@ -58,6 +60,8 @@
 #include "pachinko.h"
 #include "partytap.h"
 #include "powerpad.h"
+#include "rob.h"
+#include "sharpcass.h"
 #include "snesadapter.h"
 #include "suborkey.h"
 #include "turbofile.h"
@@ -199,6 +203,11 @@ void nes_control_port2_devices(device_slot_interface &device)
 	device.option_add("vboy", NES_VBOYCTRL);
 }
 
+void nes_control_special_devices(device_slot_interface &device)
+{
+	device.option_add("rob", NES_ROB);
+}
+
 void fc_control_port1_devices(device_slot_interface &device)
 {
 	device.option_add("joypad", NES_JOYPAD);
@@ -217,6 +226,7 @@ void fc_expansion_devices(device_slot_interface &device)
 	device.option_add("joypad", NES_FCPAD_EXP);
 	device.option_add("arcstick", NES_ARCSTICK);
 	device.option_add("fc_keyboard", NES_FCKEYBOARD);
+	device.option_add("sharp_cassette", NES_SHARPCASS);
 	device.option_add("zapper", NES_ZAPPER);
 	device.option_add("bandaihs", NES_BANDAIHS);
 	device.option_add("vaus", NES_ARKPADDLE_FC);

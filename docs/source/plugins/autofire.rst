@@ -50,9 +50,9 @@ Button 1* or the equivalent for another player, but it might have have a
 different name.  On Konami’s Gradius games, *P1 Button 2* is the primary fire
 button.
 
-Select **Hotkey** to set the input combination you’ll use to activate the
-autofire button.  This can be any combination that MAME supports for activating
-a digital input.
+Select **Hotkey** to set the control (or combination of controls) you’ll use to
+activate the autofire button.  This can be any combination that MAME supports
+for activating a digital input.
 
 **On frames** and **Off frames** are the number of consecutive emulated video
 frames that the emulated button will be held and released for, respectively.
@@ -66,10 +66,10 @@ Experiment with different values to get the best effect.
 When adding a new autofire button, there is a **Cancel** option that changes to
 **Create** after you set the input and hotkey.  Select **Create** to finish
 creating the autofire button and return to the list of autofire buttons.  The
-new autofire button will be added at the end of the list.  Press the UI Cancel
-key (Escape/Esc on the keyboard by default), or select **Cancel** before setting
-the input/hotkey, to return to the previous menu without creating the new
-autofire button.
+new autofire button will be added at the end of the list.  Press the UI Back key
+(Escape/Esc on the keyboard by default), or select **Cancel** before setting the
+input/hotkey, to return to the previous menu without creating the new autofire
+button.
 
 When modifying an existing autofire button, select **Done** or press the UI
 Cancel key to return to the list of autofire buttons.  Changes take effect
@@ -81,10 +81,10 @@ immediately.
 Notes and potential pitfalls
 ----------------------------
 
-Autofire buttons act as if they’re wired in parallel with MAME’s regular inputs.
-This means that if you set the activation hotkey for an autofire button to a
-button or key that’s also assigned to one of the emulated inputs directly, you
-may get unexpected results.  Using Gradius as an example:
+Autofire buttons act as if they’re wired in parallel with MAME’s regular
+controls.  This means that if you set the activation hotkey for an autofire
+button to a button or key that’s also assigned to one of the emulated inputs
+directly, you may get unexpected results.  Using Gradius as an example:
 
 * Suppose you set button 1 on your controller to fire, and set an autofire
   hotkey to button 1 as well.  Holding the button down to shoot will not trigger
@@ -97,8 +97,8 @@ may get unexpected results.  Using Gradius as an example:
   powerup because the powerup button is also being held down along with the
   autofire button.
 
-It is suggested you choose input combinations for autofire hotkeys that are not
-assigned to any other emulated inputs in the system.
+It is recommended that you choose control combinations for autofire hotkeys that
+are not assigned to any other emulated inputs in the system.
 
 Autofire is not necessarily desirable in all situations.  For example using
 autofire in Super-X with the blue “lightning” weapon equipped at high power

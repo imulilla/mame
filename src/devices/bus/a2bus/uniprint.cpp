@@ -36,7 +36,7 @@ protected:
 
 private:
 	// printer status inputs
-	DECLARE_WRITE_LINE_MEMBER(ack_w);
+	void ack_w(int state);
 
 	required_device<centronics_device>      m_printer_conn;
 	required_device<output_latch_device>    m_printer_out;
@@ -185,7 +185,7 @@ ioport_constructor a2bus_uniprint_device::device_input_ports() const
 
 void a2bus_uniprint_device::device_start()
 {
-	m_strobe_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(a2bus_uniprint_device::update_strobe), this));
+	m_strobe_timer = timer_alloc(FUNC(a2bus_uniprint_device::update_strobe), this);
 
 	m_next_strobe = 1U;
 
@@ -209,7 +209,7 @@ void a2bus_uniprint_device::device_reset()
 //  printer status inputs
 //----------------------------------------------
 
-WRITE_LINE_MEMBER(a2bus_uniprint_device::ack_w)
+void a2bus_uniprint_device::ack_w(int state)
 {
 	if (bool(state) != bool(m_ack_in))
 	{

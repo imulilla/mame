@@ -18,8 +18,6 @@
 #include "emu.h"
 #include "mccs1850.h"
 
-#include "fileio.h"
-
 //#define VERBOSE 0
 #include "logmacro.h"
 
@@ -107,7 +105,7 @@ DEFINE_DEVICE_TYPE(MCCS1850, mccs1850_device, "mccs1850", "MCCS1850 RTC")
 
 
 //**************************************************************************
-//  INLINE HELPERS
+//  DEVICE FUNCTIONS
 //**************************************************************************
 
 //-------------------------------------------------
@@ -133,8 +131,7 @@ inline void mccs1850_device::check_interrupt()
 		m_ram[REGISTER_STATUS] &= ~STATUS_IT;
 	}
 
-	if(!int_cb.isnull())
-		int_cb(interrupt);
+	int_cb(interrupt);
 }
 
 
@@ -146,8 +143,7 @@ inline void mccs1850_device::set_pse_line(bool state)
 {
 	m_pse = state;
 
-	if(!pse_cb.isnull())
-		pse_cb(m_pse);
+	pse_cb(m_pse);
 }
 
 
@@ -249,7 +245,7 @@ inline void mccs1850_device::write_register(offs_t offset, uint8_t data)
 //  advance_seconds -
 //-------------------------------------------------
 
-inline void mccs1850_device::advance_seconds()
+TIMER_CALLBACK_MEMBER(mccs1850_device::advance_seconds)
 {
 	uint32_t alarm = (m_ram[REGISTER_ALARM_LATCH] << 24) | (m_ram[REGISTER_ALARM_LATCH + 1] << 16) | (m_ram[REGISTER_ALARM_LATCH + 2] << 8) | m_ram[REGISTER_ALARM_LATCH + 3];
 
@@ -320,13 +316,8 @@ void mccs1850_device::rtc_clock_updated(int year, int month, int day, int day_of
 
 void mccs1850_device::device_start()
 {
-	// resolve callbacks
-	int_cb.resolve();
-	pse_cb.resolve();
-	nuc_cb.resolve();
-
 	// allocate timers
-	m_clock_timer = timer_alloc(TIMER_CLOCK);
+	m_clock_timer = timer_alloc(FUNC(mccs1850_device::advance_seconds), this);
 	m_clock_timer->adjust(attotime::from_hz(clock() / 32768), 0, attotime::from_hz(clock() / 32768));
 
 	// state saving
@@ -358,21 +349,6 @@ void mccs1850_device::device_reset()
 
 
 //-------------------------------------------------
-//  device_timer - handler timer events
-//-------------------------------------------------
-
-void mccs1850_device::device_timer(emu_timer &timer, device_timer_id id, int param)
-{
-	switch (id)
-	{
-	case TIMER_CLOCK:
-		advance_seconds();
-		break;
-	}
-}
-
-
-//-------------------------------------------------
 //  nvram_default - called to initialize NVRAM to
 //  its default state
 //-------------------------------------------------
@@ -396,9 +372,10 @@ void mccs1850_device::nvram_default()
 //  .nv file
 //-------------------------------------------------
 
-void mccs1850_device::nvram_read(emu_file &file)
+bool mccs1850_device::nvram_read(util::read_stream &file)
 {
-	file.read(m_ram, RAM_SIZE);
+	size_t actual;
+	return !file.read(m_ram, RAM_SIZE, actual) && actual == RAM_SIZE;
 }
 
 
@@ -407,9 +384,10 @@ void mccs1850_device::nvram_read(emu_file &file)
 //  .nv file
 //-------------------------------------------------
 
-void mccs1850_device::nvram_write(emu_file &file)
+bool mccs1850_device::nvram_write(util::write_stream &file)
 {
-	file.write(m_ram, RAM_SIZE);
+	size_t actual;
+	return !file.write(m_ram, RAM_SIZE, actual) && actual == RAM_SIZE;
 }
 
 
@@ -417,7 +395,7 @@ void mccs1850_device::nvram_write(emu_file &file)
 //  ce_w - chip enable write
 //-------------------------------------------------
 
-WRITE_LINE_MEMBER( mccs1850_device::ce_w )
+void mccs1850_device::ce_w(int state)
 {
 	m_ce = state;
 
@@ -433,7 +411,7 @@ WRITE_LINE_MEMBER( mccs1850_device::ce_w )
 //  sck_w - serial clock write
 //-------------------------------------------------
 
-WRITE_LINE_MEMBER( mccs1850_device::sck_w )
+void mccs1850_device::sck_w(int state)
 {
 	if (!m_ce) return;
 
@@ -513,7 +491,7 @@ WRITE_LINE_MEMBER( mccs1850_device::sck_w )
 //  sdo_r - serial data out read
 //-------------------------------------------------
 
-READ_LINE_MEMBER( mccs1850_device::sdo_r )
+int mccs1850_device::sdo_r()
 {
 	if (!m_ce || BIT(m_address, 7))
 	{
@@ -531,7 +509,7 @@ READ_LINE_MEMBER( mccs1850_device::sdo_r )
 //  sdi_w - serial data in write
 //-------------------------------------------------
 
-WRITE_LINE_MEMBER( mccs1850_device::sdi_w )
+void mccs1850_device::sdi_w(int state)
 {
 	m_sdi = state;
 }
@@ -541,7 +519,7 @@ WRITE_LINE_MEMBER( mccs1850_device::sdi_w )
 //  pwrsw_w - power switch write
 //-------------------------------------------------
 
-WRITE_LINE_MEMBER( mccs1850_device::pwrsw_w )
+void mccs1850_device::pwrsw_w(int state)
 {
 	if (!state)
 	{
@@ -561,7 +539,7 @@ WRITE_LINE_MEMBER( mccs1850_device::pwrsw_w )
 //  por_w - power on reset write
 //-------------------------------------------------
 
-WRITE_LINE_MEMBER( mccs1850_device::por_w )
+void mccs1850_device::por_w(int state)
 {
 	if (!state)
 	{
@@ -574,7 +552,7 @@ WRITE_LINE_MEMBER( mccs1850_device::por_w )
 //  test_w - test mode write
 //-------------------------------------------------
 
-WRITE_LINE_MEMBER( mccs1850_device::test_w )
+void mccs1850_device::test_w(int state)
 {
 	if (state)
 	{

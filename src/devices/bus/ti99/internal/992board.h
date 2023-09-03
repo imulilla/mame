@@ -46,7 +46,7 @@ public:
 	uint32_t screen_update( screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect );
 
 	// Video enable
-	DECLARE_WRITE_LINE_MEMBER( videna );
+	void videna(int state);
 
 	// Callbacks
 	auto readmem_cb() { return m_mem_read_cb.bind(); }
@@ -59,13 +59,11 @@ protected:
 
 	virtual void device_start() override;
 	virtual void device_reset() override;
-	virtual void device_timer(emu_timer &timer, device_timer_id id, int param) override;
+
+	TIMER_CALLBACK_MEMBER(hold_cpu);
+	TIMER_CALLBACK_MEMBER(free_cpu);
 
 private:
-	static const device_timer_id HOLD_TIME = 0;
-	static const device_timer_id FREE_TIME = 1;
-
-	std::string tts(attotime t);
 	devcb_read8   m_mem_read_cb; // Callback to read memory
 	devcb_write_line m_hold_cb;
 	devcb_write_line m_int_cb;

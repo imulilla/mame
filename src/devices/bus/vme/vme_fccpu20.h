@@ -43,21 +43,22 @@ protected:
 
 	virtual void device_start() override;
 	virtual void device_reset() override;
-	virtual void device_timer(emu_timer &timer, device_timer_id id, int param) override;
 
 	// optional information overrides
 	virtual void device_add_mconfig(machine_config &config) override;
 	virtual const tiny_rom_entry *device_rom_region() const override;
 
-	uint8_t bim_irq_state;
-	int bim_irq_level;
+	TIMER_CALLBACK_MEMBER(grant_bus);
+
+	int m_bim_irq_state;
+	uint8_t m_bim_irq_level;
 
 	emu_timer *m_arbiter_start; // Need a startup delay because it is hooked up to the sense inputs of the PIT
 
 	required_device<cpu_device> m_maincpu;
 
 private:
-	DECLARE_WRITE_LINE_MEMBER(bim_irq_callback);
+	void bim_irq_callback(int state);
 
 	/* PIT callbacks */
 	uint8_t pita_r();

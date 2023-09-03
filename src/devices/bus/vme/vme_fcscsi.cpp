@@ -91,7 +91,7 @@
  * ----------------------------------------------------------
  * 000000 - 000007 Initialisation vectors from system EPROM
  * 000008 - 001FFF Local SRAM
- * 002000 - 01FFFF Dynamic Dual Port RAM VME bus accessable
+ * 002000 - 01FFFF Dynamic Dual Port RAM VME bus accessible
  * C40000 - C4001F SCSIbus controller
  * C80000 - C800FF DMAC
  * CC0000 - CC0007 FDC
@@ -145,28 +145,17 @@
 #include "emu.h"
 #include "vme_fcscsi.h"
 
-#include "cpu/m68000/m68000.h"
+#include "cpu/m68000/m68010.h"
 #include "machine/68230pit.h"
 #include "machine/wd_fdc.h"
 #include "machine/hd63450.h" // compatible with MC68450
 #include "machine/clock.h"
 #include "formats/pc_dsk.h"
 
-#define LOG_GENERAL 0x01
-#define LOG_SETUP   0x02
-#define LOG_PRINTF  0x04
+#define VERBOSE (0) // (LOG_GENERAL)
+//#define LOG_OUTPUT_FUNC osd_printf_info
+#include "logmacro.h"
 
-#define VERBOSE 0 //(LOG_PRINTF | LOG_SETUP  | LOG_GENERAL)
-
-#define LOGMASK(mask, ...)   do { if (VERBOSE & mask) logerror(__VA_ARGS__); } while (0)
-#define LOGLEVEL(mask, level, ...) do { if ((VERBOSE & mask) >= level) logerror(__VA_ARGS__); } while (0)
-
-#define LOG(...)      LOGMASK(LOG_GENERAL, __VA_ARGS__)
-#define LOGSETUP(...) LOGMASK(LOG_SETUP,   __VA_ARGS__)
-
-#if VERBOSE & LOG_PRINTF
-#define logerror printf
-#endif
 
 #ifdef _MSC_VER
 #define FUNCNAME __func__
@@ -409,7 +398,7 @@ void vme_fcscsi1_card_device::led_w(uint8_t data) {
 	return;
 }
 
-WRITE_LINE_MEMBER(vme_fcscsi1_card_device::dma_irq)
+void vme_fcscsi1_card_device::dma_irq(int state)
 {
 	if(state != CLEAR_LINE)
 	{
@@ -432,7 +421,7 @@ uint8_t vme_fcscsi1_card_device::dma_iack()
 		return m68000_base_device::autovector(2);
 }
 
-WRITE_LINE_MEMBER(vme_fcscsi1_card_device::fdc_irq)
+void vme_fcscsi1_card_device::fdc_irq(int state)
 {
 	if (state != 0)
 	{

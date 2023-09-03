@@ -105,7 +105,7 @@ static void swiftdisc_floppies(device_slot_interface &device)
 }
 
 //-------------------------------------------------
-//  floppy_format_type floppy_formats
+//  floppy_formats
 //-------------------------------------------------
 
 void spectrum_swiftdisc_device::floppy_formats(format_registration &fr)
@@ -266,7 +266,7 @@ void spectrum_swiftdisc2_device::device_reset()
 //  IMPLEMENTATION (swiftdisc)
 //**************************************************************************
 
-READ_LINE_MEMBER(spectrum_swiftdisc_device::romcs)
+int spectrum_swiftdisc_device::romcs()
 {
 	return m_romcs | m_exp->romcs();
 }

@@ -21,7 +21,6 @@
 #include "emu.h"
 #include "sdloader.h"
 
-#define LOG_GENERAL (1U << 0)
 #define LOG_SPI     (1U << 1)
 #define VERBOSE (LOG_GENERAL)
 #include "logmacro.h"
@@ -130,7 +129,7 @@ void vtech_sdloader_device::device_start()
 	m_expbank->configure_entry(1, m_ram.get() + 0x18000);
 
 	// allocate timer for sdcard
-	m_spi_clock = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(vtech_sdloader_device::spi_clock), this));
+	m_spi_clock = timer_alloc(FUNC(vtech_sdloader_device::spi_clock), this);
 
 	// register for savestates
 	save_item(NAME(m_spi_clock_state));

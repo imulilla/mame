@@ -23,17 +23,19 @@
 #include "osdnet.h"
 #include "mameopts.h"
 #include "pluginopts.h"
+#include "dinetwork.h"
 #include "drivenum.h"
 #include "fileio.h"
 #include "romload.h"
 #include "uiinput.h"
 
-#include "corestr.h"
+#include "path.h"
 
 #include <algorithm>
 #include <cstring>
 #include <fstream>
 #include <iterator>
+#include <locale>
 
 
 namespace ui {
@@ -49,9 +51,10 @@ namespace ui {
 
 menu_bios_selection::menu_bios_selection(mame_ui_manager &mui, render_container &container) : menu(mui, container)
 {
+	set_heading(_("BIOS Selection"));
 }
 
-void menu_bios_selection::populate(float &customtop, float &custombottom)
+void menu_bios_selection::populate()
 {
 	// cycle through all devices for this system
 	for (device_t &device : device_enumerator(machine().root_device()))
@@ -70,7 +73,7 @@ void menu_bios_selection::populate(float &customtop, float &custombottom)
 						val = rom->hashdata;
 				}
 				if (val)
-					item_append(!parent ? "driver" : (device.tag() + 1), val, FLAG_LEFT_ARROW | FLAG_RIGHT_ARROW, (void *)&device);
+					item_append(!parent ? _("System") : (device.tag() + 1), val, FLAG_LEFT_ARROW | FLAG_RIGHT_ARROW, (void *)&device);
 			}
 		}
 	}
@@ -87,63 +90,71 @@ menu_bios_selection::~menu_bios_selection()
     menu_bios_selection - menu that
 -------------------------------------------------*/
 
-void menu_bios_selection::handle(event const *ev)
+bool menu_bios_selection::handle(event const *ev)
 {
-	// process the menu
-	if (ev && ev->itemref)
+	if (!ev || !ev->itemref)
+		return false;
+
+	if ((uintptr_t)ev->itemref == 1 && ev->iptkey == IPT_UI_SELECT)
 	{
-		if ((uintptr_t)ev->itemref == 1 && ev->iptkey == IPT_UI_SELECT)
-			machine().schedule_hard_reset();
+		machine().schedule_hard_reset();
+		return false;
+	}
+
+	device_t *const dev = (device_t *)ev->itemref;
+	int bios_val = 0;
+
+	switch (ev->iptkey)
+	{
+	// reset to default
+	case IPT_UI_CLEAR:
+		bios_val = dev->default_bios();
+		break;
+
+	// previous/next BIOS setting
+	case IPT_UI_SELECT:
+	case IPT_UI_LEFT:
+	case IPT_UI_RIGHT:
+		{
+			int const cnt = ([bioses = romload::entries(dev->rom_region()).get_system_bioses()] () { return std::distance(bioses.begin(), bioses.end()); })();
+			bios_val = dev->system_bios() + ((ev->iptkey == IPT_UI_LEFT) ? -1 : +1);
+
+			// wrap
+			if (bios_val < 1)
+				bios_val = cnt;
+			if (bios_val > cnt)
+				bios_val = 1;
+		}
+		break;
+
+	default:
+		break;
+	}
+
+	if (bios_val > 0)
+	{
+		dev->set_system_bios(bios_val);
+		if (!strcmp(dev->tag(), ":"))
+		{
+			machine().options().set_value("bios", bios_val - 1, OPTION_PRIORITY_CMDLINE);
+		}
 		else
 		{
-			device_t *dev = (device_t *)ev->itemref;
-			int bios_val = 0;
-
-			switch (ev->iptkey)
-			{
-				// reset to default
-				case IPT_UI_SELECT:
-					bios_val = dev->default_bios();
-					break;
-
-				// previous/next bios setting
-				case IPT_UI_LEFT: case IPT_UI_RIGHT:
-				{
-					int const cnt = ([bioses = romload::entries(dev->rom_region()).get_system_bioses()] () { return std::distance(bioses.begin(), bioses.end()); })();
-					bios_val = dev->system_bios() + ((ev->iptkey == IPT_UI_LEFT) ? -1 : +1);
-
-					// wrap
-					if (bios_val < 1)
-						bios_val = cnt;
-					if (bios_val > cnt)
-						bios_val = 1;
-
-					break;
-				}
-
-				default:
-					break;
-			}
-
-			if (bios_val > 0)
-			{
-				dev->set_system_bios(bios_val);
-				if (strcmp(dev->tag(),":")==0) {
-					machine().options().set_value("bios", bios_val-1, OPTION_PRIORITY_CMDLINE);
-				} else {
-					const char *slot_option_name = dev->owner()->tag() + 1;
-					machine().options().slot_option(slot_option_name).set_bios(string_format("%d", bios_val - 1));
-				}
-				reset(reset_options::REMEMBER_REF);
-			}
+			const char *slot_option_name = dev->owner()->tag() + 1;
+			machine().options().slot_option(slot_option_name).set_bios(string_format("%d", bios_val - 1));
 		}
+		reset(reset_options::REMEMBER_REF);
 	}
+
+	// triggers an item reset for any change
+	return false;
 }
 
 
 
 menu_network_devices::menu_network_devices(mame_ui_manager &mui, render_container &container) : menu(mui, container)
 {
+	set_heading(_("Network Devices"));
 }
 
 menu_network_devices::~menu_network_devices()
@@ -155,22 +166,23 @@ menu_network_devices::~menu_network_devices()
     network device menu
 -------------------------------------------------*/
 
-void menu_network_devices::populate(float &customtop, float &custombottom)
+void menu_network_devices::populate()
 {
 	/* cycle through all devices for this system */
 	for (device_network_interface &network : network_interface_enumerator(machine().root_device()))
 	{
 		int curr = network.get_interface();
 		const char *title = nullptr;
-		for(auto &entry : get_netdev_list())
+		for (auto &entry : get_netdev_list())
 		{
-			if(entry->id==curr) {
+			if (entry->id == curr)
+			{
 				title = entry->description;
 				break;
 			}
 		}
 
-		item_append(network.device().tag(),  (title) ? title : "------", FLAG_LEFT_ARROW | FLAG_RIGHT_ARROW, (void *)&network);
+		item_append(network.device().tag(), title ? title : "------", FLAG_LEFT_ARROW | FLAG_RIGHT_ARROW, (void *)&network);
 	}
 
 	item_append(menu_item_type::SEPARATOR);
@@ -180,24 +192,41 @@ void menu_network_devices::populate(float &customtop, float &custombottom)
     menu_network_devices - menu that
 -------------------------------------------------*/
 
-void menu_network_devices::handle(event const *ev)
+bool menu_network_devices::handle(event const *ev)
 {
-	// process the menu
-	if (ev && ev->itemref)
+	if (!ev || !ev->itemref)
 	{
-		if (ev->iptkey == IPT_UI_LEFT || ev->iptkey == IPT_UI_RIGHT)
+		return false;
+	}
+	else if (ev->iptkey == IPT_UI_LEFT || ev->iptkey == IPT_UI_RIGHT)
+	{
+		device_network_interface *const network = (device_network_interface *)ev->itemref;
+		int curr = network->get_interface();
+		if (ev->iptkey == IPT_UI_LEFT)
+			curr--;
+		else
+			curr++;
+		if (curr == -2)
+			curr = netdev_count() - 1;
+		network->set_interface(curr);
+
+		curr = network->get_interface();
+		const char *title = nullptr;
+		for (auto &entry : get_netdev_list())
 		{
-			device_network_interface *network = (device_network_interface *)ev->itemref;
-			int curr = network->get_interface();
-			if (ev->iptkey == IPT_UI_LEFT)
-				curr--;
-			else
-				curr++;
-			if (curr == -2)
-				curr = netdev_count() - 1;
-			network->set_interface(curr);
-			reset(reset_options::REMEMBER_REF);
+			if (entry->id == curr)
+			{
+				title = entry->description;
+				break;
+			}
 		}
+
+		ev->item->set_subtext(title ? title : "------");
+		return true;
+	}
+	else
+	{
+		return false;
 	}
 }
 
@@ -227,7 +256,7 @@ void menu_bookkeeping::populate_text(std::optional<text_layout> &layout, float &
 	if (!layout || (layout->width() != width))
 	{
 		rgb_t const color = ui().colors().text_color();
-		layout.emplace(ui().create_layout(container(), width));
+		layout.emplace(create_layout(width));
 
 		// show total time first
 		prevtime = machine().time();
@@ -264,20 +293,24 @@ void menu_bookkeeping::populate_text(std::optional<text_layout> &layout, float &
 	width = layout->actual_width();
 }
 
-void menu_bookkeeping::populate(float &customtop, float &custombottom)
+void menu_bookkeeping::populate()
 {
 }
 
-void menu_bookkeeping::handle(event const *ev)
+bool menu_bookkeeping::handle(event const *ev)
 {
 	// if the time has rolled over another second, regenerate
 	// TODO: what about other bookkeeping events happening with the menu open?
 	attotime const curtime = machine().time();
 	if (curtime.seconds() != prevtime.seconds())
+	{
 		reset_layout();
-
-	if (ev)
-		handle_key(ev->iptkey);
+		return true;
+	}
+	else
+	{
+		return ev && handle_key(ev->iptkey);
+	}
 }
 
 
@@ -286,7 +319,7 @@ void menu_bookkeeping::handle(event const *ev)
     menu
 -------------------------------------------------*/
 
-void menu_crosshair::handle(event const *ev)
+bool menu_crosshair::handle(event const *ev)
 {
 	// handle events
 	if (ev && ev->itemref)
@@ -349,10 +382,10 @@ void menu_crosshair::handle(event const *ev)
 				{
 					std::vector<std::string> sel;
 					sel.reserve(m_pics.size() + 1);
-					sel.push_back("DEFAULT");
+					sel.push_back(_("menu-crosshair", "[built-in]"));
 					std::copy(m_pics.begin(), m_pics.end(), std::back_inserter(sel));
 					menu::stack_push<menu_selector>(
-							ui(), container(), std::move(sel), data.cur,
+							ui(), container(), std::string(ev->item->text()), std::move(sel), data.cur,
 							[this, &data] (int selection)
 							{
 								if (!selection)
@@ -379,6 +412,9 @@ void menu_crosshair::handle(event const *ev)
 		if (changed)
 			reset(reset_options::REMEMBER_REF); // rebuild the menu
 	}
+
+	// triggers an item reset for any changes
+	return false;
 }
 
 
@@ -390,9 +426,10 @@ void menu_crosshair::handle(event const *ev)
 menu_crosshair::menu_crosshair(mame_ui_manager &mui, render_container &container) : menu(mui, container)
 {
 	set_process_flags(PROCESS_LR_REPEAT);
+	set_heading(_("menu-crosshair", "Crosshair Options"));
 }
 
-void menu_crosshair::populate(float &customtop, float &custombottom)
+void menu_crosshair::populate()
 {
 	if (m_data.empty())
 	{
@@ -442,14 +479,25 @@ void menu_crosshair::populate(float &customtop, float &custombottom)
 			if ((length > 4) && core_filename_ends_with(dir->name, ".png"))
 				m_pics.emplace_back(dir->name, length - 4);
 		}
+		std::locale const lcl;
+		std::collate<wchar_t> const &coll = std::use_facet<std::collate<wchar_t> >(lcl);
 		std::stable_sort(
 				m_pics.begin(),
 				m_pics.end(),
-				[] (std::string const &a, std::string const &b) { return 0 > core_stricmp(a.c_str(), b.c_str()); });
+				[&coll] (auto const &x, auto const &y)
+				{
+					std::wstring const wx = wstring_from_utf8(x);
+					std::wstring const wy = wstring_from_utf8(y);
+					return 0 > coll.compare(wx.data(), wx.data() + wx.size(), wy.data(), wy.data() + wy.size());
+				}
+		);
 	}
 
 	// Make sure to keep these matched to the CROSSHAIR_VISIBILITY_xxx types
-	static char const *const vis_text[] = { "Off", "On", "Auto" };
+	static char const *const vis_text[] = {
+			N_p("menu-crosshair", "Never"),
+			N_p("menu-crosshair", "Always"),
+			N_p("menu-crosshair", "When moved") };
 
 	bool use_auto = false;
 	for (crosshair_item_data &data : m_data)
@@ -472,7 +520,11 @@ void menu_crosshair::populate(float &customtop, float &custombottom)
 					flags |= FLAG_RIGHT_ARROW;
 
 				// add CROSSHAIR_ITEM_VIS menu */
-				item_append(util::string_format(_("P%d Visibility"), data.player + 1), vis_text[data.crosshair->mode()], flags, &data);
+				item_append(
+						util::string_format(_("menu-crosshair", "P%1$d Visibility"), data.player + 1),
+						_("menu-crosshair", vis_text[data.crosshair->mode()]),
+						flags,
+						&data);
 			}
 			break;
 
@@ -526,7 +578,12 @@ void menu_crosshair::populate(float &customtop, float &custombottom)
 					flags |= FLAG_LEFT_ARROW;
 
 				// add CROSSHAIR_ITEM_PIC menu
-				item_append(util::string_format(_("P%d Crosshair"), data.player + 1), using_default ? "DEFAULT" : data.crosshair->bitmap_name(), flags, &data);
+				item_append(
+						util::string_format(_("menu-crosshair", "P%1$d Crosshair"), data.player + 1),
+						using_default ? _("menu-crosshair", "[built-in]") : data.crosshair->bitmap_name(),
+						flags,
+						&data);
+				item_append(menu_item_type::SEPARATOR);
 			}
 			break;
 
@@ -543,18 +600,16 @@ void menu_crosshair::populate(float &customtop, float &custombottom)
 					flags |= FLAG_RIGHT_ARROW;
 
 				// add CROSSHAIR_ITEM_AUTO_TIME menu
-				item_append(_("Visible Delay"), util::string_format("%d", data.cur), flags, &data);
-			}
-			else
-			{
-				// leave a blank filler line when not in auto time so size does not rescale
-				//item_append("", "", nullptr, nullptr);
+				item_append(
+						_("menu-crosshair", "Auto-Hide Delay"),
+						util::string_format(_("menu-crosshair", "%1$d s"), data.cur),
+						flags,
+						&data);
+				item_append(menu_item_type::SEPARATOR);
 			}
 			break;
 		}
 	}
-
-	item_append(menu_item_type::SEPARATOR);
 }
 
 menu_crosshair::~menu_crosshair()
@@ -568,6 +623,7 @@ menu_crosshair::~menu_crosshair()
 menu_export::menu_export(mame_ui_manager &mui, render_container &container, std::vector<const game_driver *> &&drvlist)
 	: menu(mui, container), m_list(std::move(drvlist))
 {
+	set_heading(_("Export Displayed List to File"));
 }
 
 menu_export::~menu_export()
@@ -578,7 +634,7 @@ menu_export::~menu_export()
 //  handle the export menu
 //-------------------------------------------------
 
-void menu_export::handle(event const *ev)
+bool menu_export::handle(event const *ev)
 {
 	// process the menu
 	if (ev && ev->itemref)
@@ -617,7 +673,7 @@ void menu_export::handle(event const *ev)
 						auto iter = std::find_if(
 							driver_list.begin(),
 							driver_list.end(),
-							[shortname](const game_driver *driver) { return !strcmp(shortname, driver->name); });
+							[shortname] (const game_driver *driver) { return !strcmp(shortname, driver->name); });
 						return iter != driver_list.end();
 					};
 
@@ -672,13 +728,15 @@ void menu_export::handle(event const *ev)
 			break;
 		}
 	}
+
+	return false;
 }
 
 //-------------------------------------------------
 //  populate
 //-------------------------------------------------
 
-void menu_export::populate(float &customtop, float &custombottom)
+void menu_export::populate()
 {
 	// add options items
 	item_append(_("Export list in XML format (like -listxml)"), 0, (void *)(uintptr_t)1);
@@ -708,6 +766,7 @@ menu_machine_configure::menu_machine_configure(
 	osd_setup_osd_specific_emu_options(m_opts);
 	mame_options::parse_standard_inis(m_opts, error, m_sys.driver);
 	setup_bios();
+	set_heading(util::string_format(_("System Settings:\n%1$s"), m_sys.description));
 }
 
 menu_machine_configure::~menu_machine_configure()
@@ -728,7 +787,7 @@ menu_machine_configure::~menu_machine_configure()
 //  handle the machine options menu
 //-------------------------------------------------
 
-void menu_machine_configure::handle(event const *ev)
+bool menu_machine_configure::handle(event const *ev)
 {
 	// process the menu
 	if (ev && ev->itemref)
@@ -746,7 +805,7 @@ void menu_machine_configure::handle(event const *ev)
 					{
 						std::string inistring = m_opts.output_ini();
 						file.puts(inistring);
-						ui().popup_time(2, "%s", _("\n    Configuration saved    \n\n"));
+						ui().popup_time(2, "%s", _("\n    Settings saved    \n\n"));
 					}
 				}
 				break;
@@ -758,13 +817,13 @@ void menu_machine_configure::handle(event const *ev)
 				m_want_favorite = false;
 				reset(reset_options::REMEMBER_POSITION);
 				break;
-			case CONTROLLER:
-				if (ev->iptkey == IPT_UI_SELECT)
-					menu::stack_push<submenu>(ui(), container(), submenu::control_options(), m_sys.driver, &m_opts);
-				break;
 			case VIDEO:
 				if (ev->iptkey == IPT_UI_SELECT)
 					menu::stack_push<submenu>(ui(), container(), submenu::video_options(), m_sys.driver, &m_opts);
+				break;
+			case CONTROLLER:
+				if (ev->iptkey == IPT_UI_SELECT)
+					menu::stack_push<submenu>(ui(), container(), submenu::control_options(), m_sys.driver, &m_opts);
 				break;
 			case ADVANCED:
 				if (ev->iptkey == IPT_UI_SELECT)
@@ -781,23 +840,26 @@ void menu_machine_configure::handle(event const *ev)
 			reset(reset_options::REMEMBER_POSITION);
 		}
 	}
+
+	// triggers an item reset for any changes
+	return false;
 }
 
 //-------------------------------------------------
 //  populate
 //-------------------------------------------------
 
-void menu_machine_configure::populate(float &customtop, float &custombottom)
+void menu_machine_configure::populate()
 {
 	// add options items
 	item_append(_("BIOS"), FLAG_DISABLE | FLAG_UI_HEADING, nullptr);
 	if (!m_bios.empty())
 	{
 		uint32_t arrows = get_arrow_flags(std::size_t(0), m_bios.size() - 1, m_curbios);
-		item_append(_("Driver"), m_bios[m_curbios].first, arrows, (void *)(uintptr_t)BIOS);
+		item_append(_("System"), m_bios[m_curbios].first, arrows, (void *)(uintptr_t)BIOS);
 	}
 	else
-		item_append(_("This machine has no BIOS."), FLAG_DISABLE, nullptr);
+		item_append(_("[this system has no BIOS settings]"), FLAG_DISABLE, nullptr);
 
 	item_append(menu_item_type::SEPARATOR);
 	item_append(_(submenu::advanced_options()[0].description), 0, (void *)(uintptr_t)ADVANCED);
@@ -811,24 +873,12 @@ void menu_machine_configure::populate(float &customtop, float &custombottom)
 		item_append(_("Remove From Favorites"), 0, (void *)DELFAV);
 
 	item_append(menu_item_type::SEPARATOR);
-	item_append(_("Save Machine Configuration"), 0, (void *)(uintptr_t)SAVE);
-
-	customtop = 2.0f * ui().get_line_height() + 3.0f * ui().box_tb_border();
+	item_append(_("Save System Settings"), 0, (void *)(uintptr_t)SAVE);
 }
 
 //-------------------------------------------------
 //  perform our special rendering
 //-------------------------------------------------
-
-void menu_machine_configure::custom_render(void *selectedref, float top, float bottom, float origx1, float origy1, float origx2, float origy2)
-{
-	char const *const text[] = { _("Configure Machine:"), m_sys.description.c_str() };
-	draw_text_box(
-			std::begin(text), std::end(text),
-			origx1, origx2, origy1 - top, origy1 - ui().box_tb_border(),
-			text_layout::text_justify::CENTER, text_layout::word_wrapping::TRUNCATE, false,
-			ui().colors().text_color(), UI_GREEN_COLOR, 1.0f);
-}
 
 void menu_machine_configure::setup_bios()
 {
@@ -850,7 +900,7 @@ void menu_machine_configure::setup_bios()
 		u32 const bios_flags(bios.get_value());
 		std::string const bios_number(std::to_string(bios_flags - 1));
 
-		// check biosnumber and name
+		// check BIOS number and name
 		if ((bios_number == specbios) || (specbios == bios.get_name()))
 			m_curbios = bios_count;
 
@@ -873,6 +923,7 @@ void menu_machine_configure::setup_bios()
 menu_plugins_configure::menu_plugins_configure(mame_ui_manager &mui, render_container &container)
 	: menu(mui, container)
 {
+	set_heading(_("Plugins"));
 }
 
 menu_plugins_configure::~menu_plugins_configure()
@@ -892,63 +943,48 @@ menu_plugins_configure::~menu_plugins_configure()
 //  handle the plugins menu
 //-------------------------------------------------
 
-void menu_plugins_configure::handle(event const *ev)
+bool menu_plugins_configure::handle(event const *ev)
 {
-	// process the menu
-	bool changed = false;
-	plugin_options &plugins = mame_machine_manager::instance()->plugins();
-	if (ev && ev->itemref)
+	if (!ev || !ev->itemref)
+		return false;
+
+	if (ev->iptkey == IPT_UI_LEFT || ev->iptkey == IPT_UI_RIGHT || ev->iptkey == IPT_UI_SELECT)
 	{
-		if (ev->iptkey == IPT_UI_LEFT || ev->iptkey == IPT_UI_RIGHT || ev->iptkey == IPT_UI_SELECT)
+		plugin_options &plugins = mame_machine_manager::instance()->plugins();
+		plugin_options::plugin *p = plugins.find((const char*)ev->itemref);
+		if (p)
 		{
-			plugin_options::plugin *p = plugins.find((const char*)ev->itemref);
-			if (p)
-			{
-				p->m_start = !p->m_start;
-				changed = true;
-			}
+			p->m_start = !p->m_start;
+			ev->item->set_subtext(p->m_start ? _("On") : _("Off"));
+			ev->item->set_flags(p->m_start ? FLAG_LEFT_ARROW : FLAG_RIGHT_ARROW);
+			return true;
 		}
 	}
-	if (changed)
-		reset(reset_options::REMEMBER_REF);
+
+	return false;
 }
 
 //-------------------------------------------------
 //  populate
 //-------------------------------------------------
 
-void menu_plugins_configure::populate(float &customtop, float &custombottom)
+void menu_plugins_configure::populate()
 {
-	plugin_options const &plugins = mame_machine_manager::instance()->plugins();
+	plugin_options const &plugin_opts = mame_machine_manager::instance()->plugins();
 
 	bool first(true);
-	for (auto const &curentry : plugins.plugins())
+	for (const plugin_options::plugin &p : plugin_opts.plugins())
 	{
-		if ("library" != curentry.m_type)
+		if (p.m_type != "library")
 		{
 			first = false;
-			bool const enabled = curentry.m_start;
-			item_append_on_off(curentry.m_description, enabled, 0, (void *)(uintptr_t)curentry.m_name.c_str());
+			bool const enabled = p.m_start;
+			item_append_on_off(p.m_description, enabled, 0, (void *)(uintptr_t)p.m_name.c_str());
 		}
 	}
 	if (first)
-		item_append(_("No plugins found"), 0, nullptr);
+		item_append(_("No plugins found"), FLAG_DISABLE, nullptr);
 	item_append(menu_item_type::SEPARATOR);
-	customtop = ui().get_line_height() + (3.0f * ui().box_tb_border());
-}
-
-//-------------------------------------------------
-//  perform our special rendering
-//-------------------------------------------------
-
-void menu_plugins_configure::custom_render(void *selectedref, float top, float bottom, float origx1, float origy1, float origx2, float origy2)
-{
-	char const *const toptext[] = { _("Plugins") };
-	draw_text_box(
-			std::begin(toptext), std::end(toptext),
-			origx1, origx2, origy1 - top, origy1 - ui().box_tb_border(),
-			text_layout::text_justify::CENTER, text_layout::word_wrapping::TRUNCATE, false,
-			ui().colors().text_color(), UI_GREEN_COLOR, 1.0f);
 }
 
 } // namespace ui

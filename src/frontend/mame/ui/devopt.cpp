@@ -15,6 +15,11 @@
 #include "romload.h"
 #include "screen.h"
 
+#include "util/unicode.h"
+#include "util/utf8.h"
+
+#include <locale>
+
 
 namespace ui {
 
@@ -44,7 +49,7 @@ void menu_device_config::populate_text(std::optional<text_layout> &layout, float
 	if (!layout || (layout->width() != width))
 	{
 		rgb_t const color = ui().colors().text_color();
-		layout.emplace(ui().create_layout(container(), width));
+		layout.emplace(create_layout(width));
 
 		machine_config &mconfig(const_cast<machine_config &>(machine().config()));
 		machine_config::token const tok(mconfig.begin_configuration(mconfig.root_device()));
@@ -52,6 +57,13 @@ void menu_device_config::populate_text(std::optional<text_layout> &layout, float
 		for (device_t &d : device_enumerator(*dev))
 			if (!d.configured())
 				d.config_complete();
+
+		// get decimal separator
+		std::string point;
+		{
+			wchar_t const s(std::use_facet<std::numpunct<wchar_t> >(std::locale()).decimal_point());
+			point = utf8_from_wstring(std::wstring_view(&s, 1));
+		}
 
 		layout->add_text(
 				util::string_format(
@@ -91,7 +103,7 @@ void menu_device_config::populate_text(std::optional<text_layout> &layout, float
 				if (d > 0)
 				{
 					size_t dpos = hz.length() - d;
-					hz.insert(dpos, ".");
+					hz.insert(dpos, point);
 					size_t last = hz.find_last_not_of('0');
 					hz = hz.substr(0, last + (last != dpos ? 1 : 0));
 				}
@@ -127,7 +139,7 @@ void menu_device_config::populate_text(std::optional<text_layout> &layout, float
 					if (valid)
 					{
 						size_t dpos = hz.length() - 6;
-						hz.insert(dpos, ".");
+						hz.insert(dpos, point);
 						size_t last = hz.find_last_not_of('0');
 						hz = hz.substr(0, last + (last != dpos ? 1 : 0));
 					}
@@ -173,7 +185,7 @@ void menu_device_config::populate_text(std::optional<text_layout> &layout, float
 				if (d > 0)
 				{
 					size_t dpos = hz.length() - d;
-					hz.insert(dpos, ".");
+					hz.insert(dpos, point);
 					size_t last = hz.find_last_not_of('0');
 					hz = hz.substr(0, last + (last != dpos ? 1 : 0));
 				}
@@ -353,14 +365,16 @@ void menu_device_config::populate_text(std::optional<text_layout> &layout, float
 	width = layout->actual_width();
 }
 
-void menu_device_config::populate(float &customtop, float &custombottom)
+void menu_device_config::populate()
 {
 }
 
-void menu_device_config::handle(event const *ev)
+bool menu_device_config::handle(event const *ev)
 {
 	if (ev)
-		handle_key(ev->iptkey);
+		return handle_key(ev->iptkey);
+	else
+		return false;
 }
 
 } // namespace ui

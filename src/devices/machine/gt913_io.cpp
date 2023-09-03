@@ -11,6 +11,7 @@
 
 #include "emu.h"
 #include "gt913_io.h"
+#include "cpu/h8/h8.h"
 
 
 //**************************************************************************
@@ -21,19 +22,16 @@ DEFINE_DEVICE_TYPE(GT913_IO_HLE, gt913_io_hle_device, "gt913_io_hle", "Casio GT9
 
 gt913_io_hle_device::gt913_io_hle_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
 	device_t(mconfig, GT913_IO_HLE, tag, owner, clock),
-	m_cpu(*this, DEVICE_SELF_OWNER),
-	m_cpu_io(nullptr), m_intc(nullptr), m_intc_tag(nullptr)
+	m_cpu(*this, finder_base::DUMMY_TAG),
+	m_intc(*this, finder_base::DUMMY_TAG)
 {
 	m_timer_irq[0] = m_timer_irq[1] = 0;
 }
 
 void gt913_io_hle_device::device_start()
 {
-	m_cpu_io = &m_cpu->space(AS_IO);
-	m_intc = siblingdevice<h8_intc_device>(m_intc_tag);
-
-	m_timer[0] = timer_alloc(0);
-	m_timer[1] = timer_alloc(1);
+	m_timer[0] = timer_alloc(FUNC(gt913_io_hle_device::irq_timer_tick), this);
+	m_timer[1] = timer_alloc(FUNC(gt913_io_hle_device::irq_timer_tick), this);
 
 	save_item(NAME(m_timer_control));
 	save_item(NAME(m_timer_rate));
@@ -54,10 +52,10 @@ void gt913_io_hle_device::device_reset()
 	m_adc_data[0] = m_adc_data[1] = 0;
 }
 
-void gt913_io_hle_device::device_timer(emu_timer &timer, device_timer_id id, int param)
+TIMER_CALLBACK_MEMBER(gt913_io_hle_device::irq_timer_tick)
 {
-	m_timer_irq_pending[id] = true;
-	timer_check_irq(id);
+	m_timer_irq_pending[param] = true;
+	timer_check_irq((offs_t)param);
 }
 
 void gt913_io_hle_device::timer_control_w(offs_t offset, uint8_t data)
@@ -65,7 +63,7 @@ void gt913_io_hle_device::timer_control_w(offs_t offset, uint8_t data)
 	assert(offset < 2);
 	// TODO: ctk551 clears and sets bit 4 during the respective timer's IRQ, what should this do? pause/restart the timer?
 	m_timer_control[offset] = data;
-	timer_check_irq(offset);
+	timer_check_irq((int)offset);
 }
 
 uint8_t gt913_io_hle_device::timer_control_r(offs_t offset)
@@ -106,15 +104,16 @@ void gt913_io_hle_device::timer_adjust(offs_t num)
 		{
 		default:
 			logerror("unknown timer %u prescaler %u (pc = %04x)\n", num, m_timer_control[num] & 0x7, m_cpu->pc());
-			[[fallthrough]];
+			break;
 		case 0:
 			break;
 		case 2:
-			clocks <<= 9; break;
+			clocks <<= 9;
+			break;
 		}
 
 		attotime period = m_cpu->clocks_to_attotime(clocks);
-		m_timer[num]->adjust(period, 0, period);
+		m_timer[num]->adjust(period, (int)num, period);
 	}
 }
 
@@ -136,9 +135,9 @@ void gt913_io_hle_device::adc_control_w(uint8_t data)
 	if (m_adc_enable && BIT(data, 0))
 	{
 		if (!m_adc_channel)
-			m_adc_data[0] = m_cpu_io->read_word(h8_device::ADC_0);
+			m_adc_data[0] = m_cpu->do_read_adc(0);
 		else
-			m_adc_data[1] = m_cpu_io->read_word(h8_device::ADC_1);
+			m_adc_data[1] = m_cpu->do_read_adc(1);
 	}
 }
 

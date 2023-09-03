@@ -39,6 +39,7 @@ menu_tape_control::menu_tape_control(mame_ui_manager &mui, render_container &con
 	: menu_device_control<cassette_image_device>(mui, container, device)
 {
 	set_process_flags(PROCESS_LR_REPEAT);
+	set_heading(_("Tape Control"));
 }
 
 
@@ -55,7 +56,7 @@ menu_tape_control::~menu_tape_control()
 //  populate - populates the main tape control menu
 //-------------------------------------------------
 
-void menu_tape_control::populate(float &customtop, float &custombottom)
+void menu_tape_control::populate()
 {
 	if (current_device())
 	{
@@ -117,7 +118,7 @@ void menu_tape_control::populate(float &customtop, float &custombottom)
 //  handle - main tape control menu
 //-------------------------------------------------
 
-void menu_tape_control::handle(event const *ev)
+bool menu_tape_control::handle(event const *ev)
 {
 	// process the menu
 	if (ev)
@@ -157,6 +158,7 @@ void menu_tape_control::handle(event const *ev)
 
 	// hacky way to update the tape counter by repopulating every frame
 	reset(reset_options::REMEMBER_POSITION);
+	return false;
 }
 
 

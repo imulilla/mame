@@ -14,12 +14,19 @@
 #include "ui/systemlist.h"
 #include "ui/ui.h"
 
+#include "infoxml.h"
+
 #include "drivenum.h"
 #include "emuopts.h"
 #include "romload.h"
 #include "screen.h"
 #include "softlist.h"
+#include "speaker.h"
 
+#include "util/unicode.h"
+#include "util/utf8.h"
+
+#include <locale>
 #include <set>
 #include <sstream>
 #include <type_traits>
@@ -64,7 +71,7 @@ void get_general_warnings(std::ostream &buf, running_machine &machine, machine_f
 	if (machine.rom_load().warnings() > 0)
 	{
 		bad_roms = true;
-		buf << _("One or more ROMs/CHDs for this machine are incorrect. The machine may not run correctly.\n");
+		buf << _("One or more ROMs/disk images for this system are incorrect. The system may not run correctly.\n");
 	}
 	if (!machine.rom_load().software_load_warnings_message().empty())
 	{
@@ -77,12 +84,12 @@ void get_general_warnings(std::ostream &buf, running_machine &machine, machine_f
 	{
 		if (bad_roms)
 			buf << '\n';
-		buf << _("There are known problems with this machine\n\n");
+		buf << _("There are known problems with this system:\n\n");
 	}
 
 	// add a warning if any ROMs are flagged BAD_DUMP/NO_DUMP
 	if (machine.rom_load().knownbad() > 0)
-		buf << _("One or more ROMs/CHDs for this machine have not been correctly dumped.\n");
+		buf << _("One or more ROMs/disk images for this system have not been correctly dumped.\n");
 }
 
 void get_device_warnings(std::ostream &buf, device_t::feature_type unemulated, device_t::feature_type imperfect)
@@ -122,6 +129,8 @@ void get_device_warnings(std::ostream &buf, device_t::feature_type unemulated, d
 
 void get_system_warnings(std::ostream &buf, running_machine &machine, machine_flags::type flags, device_t::feature_type unemulated, device_t::feature_type imperfect)
 {
+	std::streampos start_position = buf.tellp();
+
 	// start with the unemulated/imperfect features
 	get_device_warnings(buf, unemulated, imperfect);
 
@@ -129,17 +138,35 @@ void get_system_warnings(std::ostream &buf, running_machine &machine, machine_fl
 	if (flags & ::machine_flags::NO_COCKTAIL)
 		buf << _("Screen flipping in cocktail mode is not supported.\n");
 	if (flags & ::machine_flags::REQUIRES_ARTWORK)
-		buf << _("This machine requires external artwork files.\n");
+		buf << _("This system requires external artwork files.\n");
+
+	// add the 'BTANB' warnings
 	if (flags & ::machine_flags::IS_INCOMPLETE)
-		buf << _("This machine was never completed. It may exhibit strange behavior or missing elements that are not bugs in the emulation.\n");
+	{
+		if (buf.tellp() > start_position)
+			buf << '\n';
+		buf << _("This system was never completed. It may exhibit strange behavior or missing elements that are not bugs in the emulation.\n");
+	}
 	if (flags & ::machine_flags::NO_SOUND_HW)
-		buf << _("This machine has no sound hardware, MAME will produce no sounds, this is expected behaviour.\n");
+	{
+		if (buf.tellp() > start_position)
+			buf << '\n';
+		buf << _("This system has no sound hardware, MAME will produce no sounds, this is expected behavior.\n");
+	}
 
 	// these are more severe warnings
-	if (flags & ::machine_flags::NOT_WORKING)
-		buf << _("\nTHIS MACHINE DOESN'T WORK. The emulation for this machine is not yet complete. There is nothing you can do to fix this problem except wait for the developers to improve the emulation.\n");
 	if (flags & ::machine_flags::MECHANICAL)
-		buf << _("\nElements of this machine cannot be emulated as they require physical interaction or consist of mechanical devices. It is not possible to fully experience this machine.\n");
+	{
+		if (buf.tellp() > start_position)
+			buf << '\n';
+		buf << _("Elements of this system cannot be emulated accurately as they require physical interaction or consist of mechanical devices. It is not possible to fully experience this system.\n");
+	}
+	if (flags & ::machine_flags::NOT_WORKING)
+	{
+		if (buf.tellp() > start_position)
+			buf << '\n';
+		buf << _("THIS SYSTEM DOESN'T WORK. The emulation for this system is not yet complete. There is nothing you can do to fix this problem except wait for the developers to improve the emulation.\n");
+	}
 
 	if ((flags & MACHINE_ERRORS) || ((machine.system().type.unemulated_features() | machine.system().type.imperfect_features()) & device_t::feature::PROTECTION))
 	{
@@ -161,7 +188,7 @@ void get_system_warnings(std::ostream &buf, running_machine &machine, machine_fl
 				{
 					// this one works, add a header and display the name of the clone
 					if (!foundworking)
-						util::stream_format(buf, _("\n\nThere are working clones of this machine: %s"), driver.name);
+						util::stream_format(buf, _("\n\nThere are working clones of this system: %s"), driver.name);
 					else
 						util::stream_format(buf, _(", %s"), driver.name);
 					foundworking = true;
@@ -208,7 +235,7 @@ machine_static_info::machine_static_info(const ui_options &options, machine_conf
 	for (device_t &device : device_enumerator(config.root_device()))
 	{
 		// the "no sound hardware" warning doesn't make sense when you plug in a sound card
-		if (dynamic_cast<device_sound_interface *>(&device))
+		if (dynamic_cast<speaker_device *>(&device))
 			m_flags &= ~::machine_flags::NO_SOUND_HW;
 
 		// build overall emulation status
@@ -361,12 +388,19 @@ std::string machine_info::game_info_string() const
 {
 	std::ostringstream buf;
 
+	// get decimal separator
+	std::string point;
+	{
+		wchar_t const s(std::use_facet<std::numpunct<wchar_t> >(std::locale()).decimal_point());
+		point = utf8_from_wstring(std::wstring_view(&s, 1));
+	}
+
 	// print description, manufacturer, and CPU:
-	util::stream_format(buf, _("%1$s\n%2$s %3$s\nDriver: %4$s\n\nCPU:\n"),
+	util::stream_format(buf, _("%1$s\n%2$s %3$s\nSource file: %4$s\n\nCPU:\n"),
 			system_list::instance().systems()[driver_list::find(m_machine.system().name)].description,
 			m_machine.system().year,
 			m_machine.system().manufacturer,
-			core_filename_extract_base(m_machine.system().type.source()));
+			info_xml_creator::format_sourcefile(m_machine.system().type.source()));
 
 	// loop over all CPUs
 	execute_interface_enumerator execiter(m_machine.root_device());
@@ -393,7 +427,7 @@ std::string machine_info::game_info_string() const
 		if (d > 0)
 		{
 			size_t dpos = hz.length() - d;
-			hz.insert(dpos, ".");
+			hz.insert(dpos, point);
 			size_t last = hz.find_last_not_of('0');
 			hz = hz.substr(0, last + (last != dpos ? 1 : 0));
 		}
@@ -436,7 +470,7 @@ std::string machine_info::game_info_string() const
 		if (d > 0)
 		{
 			size_t dpos = hz.length() - d;
-			hz.insert(dpos, ".");
+			hz.insert(dpos, point);
 			size_t last = hz.find_last_not_of('0');
 			hz = hz.substr(0, last + (last != dpos ? 1 : 0));
 		}
@@ -471,7 +505,7 @@ std::string machine_info::game_info_string() const
 				if (valid)
 				{
 					size_t dpos = hz.length() - 6;
-					hz.insert(dpos, ".");
+					hz.insert(dpos, point);
 					size_t last = hz.find_last_not_of('0');
 					hz = hz.substr(0, last + (last != dpos ? 1 : 0));
 				}
@@ -521,26 +555,31 @@ menu_game_info::~menu_game_info()
 {
 }
 
+void menu_game_info::menu_activated()
+{
+	// screen modes can be reconfigured while the menu isn't displayed, etc.
+	reset_layout();
+}
+
 void menu_game_info::populate_text(std::optional<text_layout> &layout, float &width, int &lines)
 {
 	if (!layout || (layout->width() != width))
 	{
 		rgb_t const color = ui().colors().text_color();
-		layout.emplace(ui().create_layout(container(), width));
+		layout.emplace(create_layout(width));
 		layout->add_text(ui().machine_info().game_info_string(), color);
 		lines = layout->lines();
 	}
 	width = layout->actual_width();
 }
 
-void menu_game_info::populate(float &customtop, float &custombottom)
+void menu_game_info::populate()
 {
 }
 
-void menu_game_info::handle(event const *ev)
+bool menu_game_info::handle(event const *ev)
 {
-	if (ev)
-		handle_key(ev->iptkey);
+	return ev && handle_key(ev->iptkey);
 }
 
 
@@ -591,21 +630,20 @@ void menu_warn_info::populate_text(std::optional<text_layout> &layout, float &wi
 		}
 
 		rgb_t const color(ui().colors().text_color());
-		layout.emplace(ui().create_layout(container(), width));
+		layout.emplace(create_layout(width));
 		layout->add_text(std::move(buf).str(), color);
 		lines = layout->lines();
 	}
 	width = layout->actual_width();
 }
 
-void menu_warn_info::populate(float &customtop, float &custombottom)
+void menu_warn_info::populate()
 {
 }
 
-void menu_warn_info::handle(event const *ev)
+bool menu_warn_info::handle(event const *ev)
 {
-	if (ev)
-		handle_key(ev->iptkey);
+	return ev && handle_key(ev->iptkey);
 }
 
 
@@ -615,6 +653,7 @@ void menu_warn_info::handle(event const *ev)
 
 menu_image_info::menu_image_info(mame_ui_manager &mui, render_container &container) : menu(mui, container)
 {
+	set_heading(_("Media Image Information"));
 }
 
 menu_image_info::~menu_image_info()
@@ -626,18 +665,15 @@ void menu_image_info::menu_activated()
 	reset(reset_options::REMEMBER_POSITION);
 }
 
-void menu_image_info::populate(float &customtop, float &custombottom)
+void menu_image_info::populate()
 {
-	ui_system_info const &system(system_list::instance().systems()[driver_list::find(machine().system().name)]);
-	item_append(system.description, FLAG_DISABLE, nullptr);
-	item_append(std::string(), FLAG_DISABLE, nullptr);
-
 	for (device_image_interface &image : image_interface_enumerator(machine().root_device()))
 		image_info(&image);
 }
 
-void menu_image_info::handle(event const *ev)
+bool menu_image_info::handle(event const *ev)
 {
+	return false;
 }
 
 
@@ -648,6 +684,9 @@ void menu_image_info::handle(event const *ev)
 
 void menu_image_info::image_info(device_image_interface *image)
 {
+	if (!image->user_loadable())
+		return;
+
 	if (image->exists())
 	{
 		// display device type and filename
@@ -680,7 +719,7 @@ void menu_image_info::image_info(device_image_interface *image)
 	{
 		item_append(image->brief_instance_name(), _("[empty]"), 0, nullptr);
 	}
-	item_append(std::string(), FLAG_DISABLE, nullptr);
+	item_append(menu_item_type::SEPARATOR);
 }
 
 } // namespace ui

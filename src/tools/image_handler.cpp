@@ -31,8 +31,8 @@ namespace {
 			m_category = name;
 		}
 
-		virtual void add(floppy_format_type format) {
-			m_table->floppy_format_infos.emplace_back(std::make_unique<floppy_format_info>(format(), m_category));
+		virtual void add(const floppy_image_format_t &format) {
+			m_table->floppy_format_infos.emplace_back(std::make_unique<floppy_format_info>(&format, m_category));
 		}
 
 		virtual void add(const fs::manager_t &fs) {
@@ -42,12 +42,11 @@ namespace {
 
 	struct fs_enum : public fs::manager_t::floppy_enumerator {
 		filesystem_format *m_format;
+		fs_enum(filesystem_format *format, const std::vector<u32> &variants) : fs::manager_t::floppy_enumerator(floppy_image::FF_UNKNOWN, variants), m_format(format) {}
 
-		fs_enum(filesystem_format *format) : m_format(format) {}
-
-		virtual void add(floppy_format_type type, u32 image_size, const char *name, const char *description) override {
+		virtual void add_format(const floppy_image_format_t &type, u32 image_size, const char *name, const char *description) override {
 			m_format->m_floppy = true;
-			m_format->m_floppy_create.emplace_back(std::make_unique<floppy_create_info>(m_format->m_manager, type, image_size, name, description));
+			m_format->m_floppy_create.emplace_back(std::make_unique<floppy_create_info>(m_format->m_manager, &type, image_size, name, description));
 		}
 
 		virtual void add_raw(const char *name, u32 key, const char *description) override {
@@ -65,8 +64,8 @@ void formats_table::init()
 	mame_formats_full_list(en);
 
 	for(auto &f : filesystem_formats) {
-		fs_enum fen(f.get());
-		f->m_manager->enumerate_f(fen, floppy_image::FF_UNKNOWN, variants);
+		fs_enum fen(f.get(), variants);
+		f->m_manager->enumerate_f(fen);
 	}
 
 	for(auto &f : floppy_format_infos) {
@@ -140,11 +139,9 @@ const floppy_create_info *formats_table::find_floppy_create_info_by_key(const st
 
 std::vector<u8> image_handler::fload(std::string path)
 {
-	char msg[4096];
-	sprintf(msg, "Error opening %s for reading", path.c_str());
 	auto fi = fopen(path.c_str(), "rb");
 	if(!fi) {
-		perror(msg);
+		perror(util::string_format("Error opening %s for reading", path).c_str());
 		exit(1);
 	}
 	fseek(fi, 0, SEEK_END);
@@ -183,11 +180,9 @@ std::vector<u8> image_handler::fload_rsrc(std::string path)
 
 void image_handler::fsave(std::string path, const std::vector<u8> &data)
 {
-	char msg[4096];
-	sprintf(msg, "Error opening %s for writing", path.c_str());
 	auto fo = fopen(path.c_str(), "wb");
 	if(!fo) {
-		perror(msg);
+		perror(util::string_format("Error opening %s for writing", path).c_str());
 		exit(1);
 	}
 
@@ -208,11 +203,9 @@ void image_handler::fsave_rsrc(std::string path, const std::vector<u8> &data)
 	filesystem_t::w32b(head+0x22, 0x2a);        // Offset in the file
 	filesystem_t::w32b(head+0x26, data.size()); // Length
 
-	char msg[4096];
-	sprintf(msg, "Error opening %s for writing", path.c_str());
 	auto fo = fopen(path.c_str(), "wb");
 	if(!fo) {
-		perror(msg);
+		perror(util::string_format("Error opening %s for writing", path).c_str());
 		exit(1);
 	}
 
@@ -246,6 +239,8 @@ std::vector<std::pair<u8, const floppy_format_info *>> image_handler::identify(c
 
 	for(const auto &e : formats.floppy_format_info_by_key) {
 		u8 score = e.second->m_format->identify(*io, floppy_image::FF_UNKNOWN, variants);
+		if(score && e.second->m_format->extension_matches(m_on_disk_path.c_str()))
+			score |= floppy_image_format_t::FIFID_EXT;
 		if(score)
 			res.emplace_back(std::make_pair(score, e.second));
 	}
@@ -271,9 +266,9 @@ bool image_handler::floppy_load(const floppy_format_info *format)
 bool image_handler::floppy_save(const floppy_format_info *format)
 {
 	std::vector<uint32_t> variants;
-	std::string msg = util::string_format("Error opening %s for writing", m_on_disk_path);
 	FILE *f = fopen(m_on_disk_path.c_str(), "wb");
 	if (!f) {
+		auto msg = util::string_format("Error opening %s for writing", m_on_disk_path);
 		perror(msg.c_str());
 		return true;
 	}
@@ -292,10 +287,8 @@ void image_handler::floppy_create(const floppy_create_info *format, fs::meta_dat
 		auto fs = format->m_manager->mount(blockdev);
 		fs->format(meta);
 
-		auto source_format = format->m_type();
 		auto io = util::ram_read(img.data(), img.size(), 0xff);
-		source_format->load(*io, floppy_image::FF_UNKNOWN, variants, &m_floppy_image);
-		delete source_format;
+		format->m_type->load(*io, floppy_image::FF_UNKNOWN, variants, &m_floppy_image);
 	} else {
 		fs::unformatted_image::format(format->m_key, &m_floppy_image);
 	}
@@ -309,10 +302,8 @@ bool image_handler::floppy_mount_fs(const filesystem_format *format)
 			std::vector<uint32_t> variants;
 			m_floppy_fs_converter = ci->m_type;
 			m_sector_image.clear();
-			auto load_format = m_floppy_fs_converter();
 			util::random_read_write_fill_wrapper<util::vector_read_write_adapter<u8>, 0xff> io(m_sector_image);
-			load_format->save(io, variants, &m_floppy_image);
-			delete load_format;
+			m_floppy_fs_converter->save(io, variants, &m_floppy_image);
 		}
 
 		if(ci->m_image_size == m_sector_image.size())
@@ -344,9 +335,7 @@ void image_handler::fs_to_floppy()
 {
 	std::vector<uint32_t> variants;
 	auto io = util::ram_read(m_sector_image.data(), m_sector_image.size(), 0xff);
-	auto format = m_floppy_fs_converter();
-	format->load(*io, floppy_image::FF_UNKNOWN, variants, &m_floppy_image);
-	delete format;
+	m_floppy_fs_converter->load(*io, floppy_image::FF_UNKNOWN, variants, &m_floppy_image);
 }
 
 std::vector<std::string> image_handler::path_split(std::string path) const

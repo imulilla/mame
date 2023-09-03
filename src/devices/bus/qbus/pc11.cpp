@@ -12,8 +12,7 @@
 #include "pc11.h"
 
 
-//#define LOG_GENERAL (1U <<  0)
-#define LOG_DBG     (1U <<  2)
+#define LOG_DBG     (1U << 1)
 
 //#define VERBOSE (LOG_GENERAL | LOG_DBG)
 //#define LOG_OUTPUT_FUNC osd_printf_info
@@ -82,8 +81,8 @@ void pc11_device::device_start()
 	save_item(NAME(m_tbuf));
 
 	// about 300 cps
-	emu_timer *timer = timer_alloc();
-	timer->adjust(attotime::from_usec(333), 0, attotime::from_usec(333));
+	m_read_timer = timer_alloc(FUNC(pc11_device::read_tick), this);
+	m_read_timer->adjust(attotime::from_usec(333), 0, attotime::from_usec(333));
 }
 
 
@@ -136,7 +135,7 @@ void pc11_device::z80daisy_irq_reti()
 }
 
 
-image_init_result pc11_device::call_load()
+std::pair<std::error_condition, std::string> pc11_device::call_load()
 {
 	/* reader unit */
 	m_fd = this;
@@ -144,7 +143,7 @@ image_init_result pc11_device::call_load()
 
 	LOG("call_load filename %s is_open %d\n", m_fd->filename(), m_fd->is_open());
 
-	return image_init_result::PASS;
+	return std::make_pair(std::error_condition(), std::string());
 }
 
 void pc11_device::call_unload()
@@ -214,14 +213,14 @@ void pc11_device::write(offs_t offset, uint16_t data)
 	}
 }
 
-void pc11_device::device_timer(emu_timer &timer, device_timer_id id, int param)
+TIMER_CALLBACK_MEMBER(pc11_device::read_tick)
 {
 	uint8_t reply;
 
 	if (!(m_rcsr & CSR_BUSY))
 		return;
 
-	LOGDBG("Timer rcsr %06o id %d param %d m_fd %p\n", m_rcsr, id, param, m_fd);
+	LOGDBG("Timer rcsr %06o param %d m_fd %p\n", m_rcsr, param, m_fd);
 
 	m_rcsr = (m_rcsr | CSR_ERR) & ~CSR_BUSY;
 	if (m_fd && m_fd->exists() && (m_fd->fread(&reply, 1) == 1))

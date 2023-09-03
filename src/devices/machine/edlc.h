@@ -7,6 +7,7 @@
 #pragma once
 
 #include "machine/bankdev.h"
+#include "dinetwork.h"
 
 class seeq8003_device :
 	public device_t,
@@ -37,11 +38,11 @@ public:
 protected:
 	seeq8003_device(machine_config const &mconfig, device_type type, char const *tag, device_t *owner, u32 clock = 0);
 
-	// device_t overrides
+	// device_t implementation
 	virtual void device_start() override;
 	virtual void device_reset() override;
 
-	// device_network_interface overrides
+	// device_network_interface implementation
 	virtual int recv_start_cb(u8 *buf, int length) override;
 
 	// register read handlers

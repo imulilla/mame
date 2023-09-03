@@ -3,12 +3,15 @@ name: Build documentation
 on:
   push:
     paths:
-    - '.github/**'
+    - '.github/workflows/**'
     - 'docs/**'
   pull_request:
     paths:
-    - '.github/**'
+    - '.github/workflows/**'
     - 'docs/**'
+
+permissions:
+  contents: read
 
 jobs:
   build-docs:

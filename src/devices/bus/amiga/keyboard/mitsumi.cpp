@@ -106,13 +106,13 @@ ROM_END
 class mitsumi_keyboard_base : public device_t, public device_amiga_keyboard_interface
 {
 public:
-	virtual WRITE_LINE_MEMBER(kdat_w) override
+	virtual void kdat_w(int state) override
 	{
 		m_kdat_in = state ? 0x01U : 0x00U;
 		m_mcu->pa_w(m_meta->read());
 	}
 
-	READ_LINE_MEMBER(kdat_r)
+	int kdat_r()
 	{
 		return m_kdat_in ^ 0x01U;
 	}
@@ -128,7 +128,7 @@ public:
 		return (result >> 2) ^ 0x3fU;
 	}
 
-	READ_LINE_MEMBER(reset_r)
+	int reset_r()
 	{
 		return m_ctrl_a_a;
 	}
@@ -209,8 +209,8 @@ protected:
 	{
 		mitsumi_keyboard_base::device_start();
 
-		m_wd_timeout = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(mitsumi_watchdog_keyboard_base::wd_timeout), this));
-		m_wd_pulse = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(mitsumi_watchdog_keyboard_base::wd_pulse), this));
+		m_wd_timeout = timer_alloc(FUNC(mitsumi_watchdog_keyboard_base::wd_timeout), this);
+		m_wd_pulse = timer_alloc(FUNC(mitsumi_watchdog_keyboard_base::wd_pulse), this);
 
 		m_pd7 = 0x01U;
 
@@ -230,7 +230,7 @@ protected:
 	}
 
 private:
-	WRITE_LINE_MEMBER(pd7_w)
+	void pd7_w(int state)
 	{
 		if (bool(state) != bool(m_pd7))
 		{
@@ -284,7 +284,7 @@ protected:
 	{
 		mitsumi_watchdog_keyboard_base::device_start();
 
-		m_reset_pulse = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(a500_keyboard_base::reset_pulse), this));
+		m_reset_pulse = timer_alloc(FUNC(a500_keyboard_base::reset_pulse), this);
 
 		m_reset_active = 0U;
 
@@ -344,7 +344,7 @@ protected:
 	{
 		mitsumi_keyboard_base::device_start();
 
-		m_reset_pulse = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(a600_keyboard_base::reset_pulse), this));
+		m_reset_pulse = timer_alloc(FUNC(a600_keyboard_base::reset_pulse), this);
 
 		m_reset_trigger = 0U;
 		m_reset_active = 0U;
@@ -366,7 +366,7 @@ protected:
 	}
 
 private:
-	WRITE_LINE_MEMBER(reset_trigger)
+	void reset_trigger(int state)
 	{
 		if (bool(state) != bool(m_reset_trigger))
 		{

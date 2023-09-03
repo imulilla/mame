@@ -10,6 +10,8 @@ exports.author = { name = "Carl" }
 
 local cheatfind = exports
 
+local reset_subscription
+
 function cheatfind.startplugin()
 	local cheat = {}
 
@@ -333,7 +335,7 @@ function cheatfind.startplugin()
 		end
 	end
 
-	emu.register_start(start)
+	reset_subscription = emu.add_machine_reset_notifier(start)
 
 	local menu_is_showing = false
 	local tabbed_out = false
@@ -351,7 +353,7 @@ function cheatfind.startplugin()
 			for num, func in ipairs(menu) do
 				local item, f = func()
 				if item then
-					menu_list[#menu_list + 1] = item
+					table.insert(menu_list, item)
 					menu_func[#menu_list] = f
 				end
 			end
@@ -715,9 +717,9 @@ function cheatfind.startplugin()
 				end
 				local m
 				if optable[opsel] == "ltv" or optable[opsel] == "gtv" or optable[opsel] == "eqv" or optable[opsel] == "nev" then
-					m = { _("Value"), value, "" }
+					m = { _("Value"), tostring(value), "" }
 				else
-					m = { _("Difference"), value, "" }
+					m = { _("Difference"), tostring(value), "" }
 				end
 				local max = 100 -- max value?
 				menu_lim(value, 0, max, m)
@@ -792,7 +794,7 @@ function cheatfind.startplugin()
 				end
 				menu[#menu + 1] = function() return { "---", "", "off" }, nil end
 				menu[#menu + 1] = function()
-					local m = { _("Match block"), matchsel, "" }
+					local m = { _("Match block"), tostring(matchsel), "" }
 					menu_lim(matchsel, 0, #matches[#matches], m)
 					if matchsel == 0 then
 						m[2] = _("All")
@@ -965,7 +967,7 @@ function cheatfind.startplugin()
 								end
 							end
 						end
-						cheat_save.path = emu.subst_env(manager.machine.options.entries.cheatpath:value()):match("([^;]+)")
+						cheat_save.path = manager.machine.options.entries.cheatpath:value():match("([^;]+)")
 						cheat_save.filename = string.format("%s/%s", cheat_save.path, setname)
 						cheat_save.name = cheat.desc
 						local json = require("json")
@@ -1017,7 +1019,7 @@ function cheatfind.startplugin()
 				end
 				if matches[#matches].count > 100 then
 					menu[#menu + 1] = function()
-						local m = { _("Page"), matchpg, "on" }
+						local m = { _("Page"), tostring(matchpg), "on" }
 						local max
 						if matchsel == 0 then
 							max = math.ceil(matches[#matches].count / 100) - 1
@@ -1044,11 +1046,12 @@ function cheatfind.startplugin()
 	end
 
 	local function menu_callback(index, event)
-		if event == "cancel" and pausesel == 1 then
+		if event == "back" and pausesel == 1 then
 			emu.unpause()
 			menu_is_showing = false
 			return false -- return false so menu will be popped off the stack
 		end
+		if index == 0 then return false end
 		return menu_func[index](event)
 	end
 	emu.register_menu(menu_callback, menu_populate, _("Cheat Finder"))

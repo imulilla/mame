@@ -121,7 +121,7 @@ static void beta_floppies(device_slot_interface &device)
 }
 
 //-------------------------------------------------
-//  floppy_format_type floppy_formats
+//  floppy_formats
 //-------------------------------------------------
 
 void spectrum_betav2_device::floppy_formats(format_registration &fr)
@@ -475,7 +475,7 @@ void spectrum_betav2_device::device_reset()
 //  IMPLEMENTATION
 //**************************************************************************
 
-READ_LINE_MEMBER(spectrum_betav2_device::romcs)
+int spectrum_betav2_device::romcs()
 {
 	return m_romcs | m_exp->romcs();
 }

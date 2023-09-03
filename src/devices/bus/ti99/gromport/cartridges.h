@@ -33,12 +33,12 @@ public:
 	void crureadz(offs_t offset, uint8_t *value);
 	void cruwrite(offs_t offset, uint8_t data);
 
-	DECLARE_WRITE_LINE_MEMBER(ready_line);
-	DECLARE_WRITE_LINE_MEMBER(romgq_line);
+	void ready_line(int state);
+	void romgq_line(int state);
 
 	void set_gromlines(line_state mline, line_state moline, line_state gsq);
 
-	DECLARE_WRITE_LINE_MEMBER(gclock_in);
+	void gclock_in(int state);
 
 	bool    is_available() { return m_pcb != nullptr; }
 	void    set_slot(int i);
@@ -51,7 +51,7 @@ protected:
 	virtual const tiny_rom_entry* device_rom_region() const override;
 
 	// Image handling: implementation of methods which are abstract in the parent
-	image_init_result call_load() override;
+	std::pair<std::error_condition, std::string> call_load() override;
 	void call_unload() override;
 
 	void prepare_cartridge();
@@ -120,6 +120,10 @@ private:
 	std::unique_ptr<ti99_cartridge_pcb> m_pcb;          // inbound
 	cartridge_connector_device*    m_connector;    // outbound
 
+	// We use dynamically allocated space instead of memory regions
+	// because the required spaces are widely varying (8K to 32M)
+	std::unique_ptr<u8[]> m_romspace;
+
 	// RPK which is associated to this cartridge
 	// When we close it, the contents are saved to NVRAM if available
 	std::unique_ptr<rpk> m_rpk;
@@ -140,9 +144,9 @@ protected:
 	virtual void crureadz(offs_t offset, uint8_t *value);
 	virtual void cruwrite(offs_t offset, uint8_t data);
 
-	DECLARE_WRITE_LINE_MEMBER(romgq_line);
+	void romgq_line(int state);
 	virtual void set_gromlines(line_state mline, line_state moline, line_state gsq);
-	DECLARE_WRITE_LINE_MEMBER(gclock_in);
+	void gclock_in(int state);
 
 	void gromreadz(uint8_t* value);
 	void gromwrite(uint8_t data);

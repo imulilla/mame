@@ -9,8 +9,8 @@
 #include "emu.h"
 #include "swim2.h"
 
-#define LOG_SETUP   (1 << 1U)
-#define LOG_MODE    (1 << 2U)
+#define LOG_SETUP   (1U << 1)
+#define LOG_MODE    (1U << 2)
 #define VERBOSE     0
 #include "logmacro.h"
 
@@ -77,10 +77,6 @@ void swim2_device::device_reset()
 	std::fill(m_flux_write.begin(), m_flux_write.end(), 0);
 
 	m_last_sync = machine().time().as_ticks(clock());
-}
-
-void swim2_device::device_timer(emu_timer &, device_timer_id, int)
-{
 }
 
 void swim2_device::set_floppy(floppy_image_device *floppy)

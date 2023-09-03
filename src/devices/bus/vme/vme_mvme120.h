@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include "cpu/m68000/m68000.h"
+#include "cpu/m68000/m68010.h"
 #include "bus/vme/vme.h"
 #include "bus/rs232/rs232.h"
 #include "machine/clock.h"
@@ -81,8 +81,8 @@ protected:
 
 	void rom_shadow_tap(offs_t address, u16 data, u16 mem_mask);
 
-	DECLARE_WRITE_LINE_MEMBER(watchdog_reset);
-	DECLARE_WRITE_LINE_MEMBER(mfp_interrupt);
+	void watchdog_reset(int state);
+	void mfp_interrupt(int state);
 
 	const mvme12x_variant  m_board_id;
 };

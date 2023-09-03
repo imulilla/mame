@@ -32,7 +32,7 @@ std::vector<submenu::option> submenu::misc_options()
 	return std::vector<option>{
 			{ option_type::HEAD, N_("Miscellaneous Options") },
 			{ option_type::UI,   N_("Skip imperfect emulation warnings"),       OPTION_SKIP_WARNINGS },
-			{ option_type::UI,   N_("Re-select last machine launched"),         OPTION_REMEMBER_LAST },
+			{ option_type::UI,   N_("Re-select last system launched"),          OPTION_REMEMBER_LAST },
 			{ option_type::UI,   N_("Enlarge images in the right panel"),       OPTION_ENLARGE_SNAPS },
 			{ option_type::EMU,  N_("Cheats"),                                  OPTION_CHEAT },
 			{ option_type::EMU,  N_("Show mouse pointer"),                      OPTION_UI_MOUSE },
@@ -91,6 +91,7 @@ std::vector<submenu::option> submenu::advanced_options()
 			{ option_type::EMU,  N_("Off-screen reload"),                       OPTION_OFFSCREEN_RELOAD },
 			{ option_type::EMU,  N_("Joystick deadzone"),                       OPTION_JOYSTICK_DEADZONE },
 			{ option_type::EMU,  N_("Joystick saturation"),                     OPTION_JOYSTICK_SATURATION },
+			{ option_type::EMU,  N_("Joystick threshold"),                      OPTION_JOYSTICK_THRESHOLD },
 			{ option_type::EMU,  N_("Natural keyboard"),                        OPTION_NATURAL_KEYBOARD },
 			{ option_type::EMU,  N_("Allow contradictory joystick inputs"),     OPTION_JOYSTICK_CONTRADICTORY },
 			{ option_type::EMU,  N_("Coin impulse"),                            OPTION_COIN_IMPULSE } };
@@ -158,6 +159,7 @@ submenu::submenu(mame_ui_manager &mui, render_container &container, std::vector<
 	, m_driver(drv)
 {
 	set_process_flags(PROCESS_LR_REPEAT);
+	set_heading(_(m_options[0].description));
 
 	core_options *opts = nullptr;
 	if (m_driver == nullptr)
@@ -172,7 +174,7 @@ submenu::submenu(mame_ui_manager &mui, render_container &container, std::vector<
 		case option_type::EMU:
 			sm_option.entry = opts->get_entry(sm_option.name);
 			sm_option.options = opts;
-			if (sm_option.entry->type() == OPTION_STRING)
+			if ((sm_option.entry->type() == core_options::option_type::STRING) || (sm_option.entry->type() == core_options::option_type::PATH) || (sm_option.entry->type() == core_options::option_type::MULTIPATH))
 			{
 				sm_option.value.clear();
 				std::string namestr(sm_option.entry->description());
@@ -196,7 +198,7 @@ submenu::submenu(mame_ui_manager &mui, render_container &container, std::vector<
 		case option_type::OSD:
 			sm_option.entry = opts->get_entry(sm_option.name);
 			sm_option.options = opts;
-			if (sm_option.entry->type() == OPTION_STRING)
+			if ((sm_option.entry->type() == core_options::option_type::STRING) || (sm_option.entry->type() == core_options::option_type::PATH) || (sm_option.entry->type() == core_options::option_type::MULTIPATH))
 			{
 				sm_option.value.clear();
 				std::string descr(machine().options().get_entry(sm_option.name)->description()), delim(", ");
@@ -243,7 +245,7 @@ submenu::~submenu()
 //  handle the options menu
 //-------------------------------------------------
 
-void submenu::handle(event const *ev)
+bool submenu::handle(event const *ev)
 {
 	bool changed = false;
 	std::string error_string, tmptxt;
@@ -261,11 +263,11 @@ void submenu::handle(event const *ev)
 		case option_type::OSD:
 			switch (sm_option.entry->type())
 			{
-			case OPTION_BOOLEAN:
+			case core_options::option_type::BOOLEAN:
 				changed = true;
 				sm_option.options->set_value(sm_option.name, !strcmp(sm_option.entry->value(),"1") ? "0" : "1", OPTION_PRIORITY_CMDLINE);
 				break;
-			case OPTION_INTEGER:
+			case core_options::option_type::INTEGER:
 				if (ev->iptkey == IPT_UI_LEFT || ev->iptkey == IPT_UI_RIGHT)
 				{
 					changed = true;
@@ -274,7 +276,7 @@ void submenu::handle(event const *ev)
 					sm_option.options->set_value(sm_option.name, i_cur, OPTION_PRIORITY_CMDLINE);
 				}
 				break;
-			case OPTION_FLOAT:
+			case core_options::option_type::FLOAT:
 				if (ev->iptkey == IPT_UI_LEFT || ev->iptkey == IPT_UI_RIGHT)
 				{
 					changed = true;
@@ -284,7 +286,7 @@ void submenu::handle(event const *ev)
 						const char *minimum = sm_option.entry->minimum();
 						const char *maximum = sm_option.entry->maximum();
 						f_step = atof(minimum);
-						if (f_step <= 0.0f) {
+						if (f_step <= 0.0F) {
 							int pmin = getprecisionchr(minimum);
 							int pmax = getprecisionchr(maximum);
 							tmptxt = '1' + std::string((pmin > pmax) ? pmin : pmax, '0');
@@ -305,7 +307,9 @@ void submenu::handle(event const *ev)
 					sm_option.options->set_value(sm_option.name, tmptxt.c_str(), OPTION_PRIORITY_CMDLINE);
 				}
 				break;
-			case OPTION_STRING:
+			case core_options::option_type::STRING:
+			case core_options::option_type::PATH:
+			case core_options::option_type::MULTIPATH:
 				if (ev->iptkey == IPT_UI_LEFT || ev->iptkey == IPT_UI_RIGHT)
 				{
 					changed = true;
@@ -328,15 +332,16 @@ void submenu::handle(event const *ev)
 		}
 	}
 
-	if (changed)
+	if (changed) // FIXME: most changes should only require updating the item's subtext
 		reset(reset_options::REMEMBER_REF);
+	return false;
 }
 
 //-------------------------------------------------
 //  populate
 //-------------------------------------------------
 
-void submenu::populate(float &customtop, float &custombottom)
+void submenu::populate()
 {
 	// add options
 	for (auto sm_option = m_options.begin(); sm_option < m_options.end(); ++sm_option)
@@ -362,14 +367,14 @@ void submenu::populate(float &customtop, float &custombottom)
 		case option_type::OSD:
 			switch (sm_option->entry->type())
 			{
-			case OPTION_BOOLEAN:
+			case core_options::option_type::BOOLEAN:
 				item_append_on_off(
 						_(sm_option->description),
 						sm_option->options->bool_value(sm_option->name),
 						0,
 						static_cast<void*>(&(*sm_option)));
 				break;
-			case OPTION_INTEGER:
+			case core_options::option_type::INTEGER:
 				{
 					int i_min, i_max;
 					int i_cur = atoi(sm_option->entry->value());
@@ -391,7 +396,7 @@ void submenu::populate(float &customtop, float &custombottom)
 							reinterpret_cast<void *>(&*sm_option));
 				}
 				break;
-			case OPTION_FLOAT:
+			case core_options::option_type::FLOAT:
 				{
 					float f_min, f_max;
 					float f_cur = atof(sm_option->entry->value());
@@ -402,7 +407,7 @@ void submenu::populate(float &customtop, float &custombottom)
 					}
 					else
 					{
-						f_min = 0.0f;
+						f_min = 0.0F;
 						f_max = std::numeric_limits<float>::max();
 					}
 					arrow_flags = get_arrow_flags(f_min, f_max, f_cur);
@@ -414,7 +419,7 @@ void submenu::populate(float &customtop, float &custombottom)
 							reinterpret_cast<void *>(&*sm_option));
 				}
 				break;
-			case OPTION_STRING:
+			case core_options::option_type::STRING:
 				{
 					std::string v_cur(sm_option->entry->value());
 					int const cur_value = std::distance(sm_option->value.begin(), std::find(sm_option->value.begin(), sm_option->value.end(), v_cur));
@@ -443,7 +448,17 @@ void submenu::populate(float &customtop, float &custombottom)
 	}
 
 	item_append(menu_item_type::SEPARATOR);
-	custombottom = customtop = ui().get_line_height() + (3.0f * ui().box_tb_border());
+}
+
+//-------------------------------------------------
+//  recompute metrics
+//-------------------------------------------------
+
+void submenu::recompute_metrics(uint32_t width, uint32_t height, float aspect)
+{
+	menu::recompute_metrics(width, height, aspect);
+
+	set_custom_space(0.0F, line_height() + (3.0F * tb_border()));
 }
 
 //-------------------------------------------------
@@ -452,13 +467,6 @@ void submenu::populate(float &customtop, float &custombottom)
 
 void submenu::custom_render(void *selectedref, float top, float bottom, float origx1, float origy1, float origx2, float origy2)
 {
-	char const *const toptext[] = { _(m_options[0].description) };
-	draw_text_box(
-			std::begin(toptext), std::end(toptext),
-			origx1, origx2, origy1 - top, origy1 - ui().box_tb_border(),
-			text_layout::text_justify::CENTER, text_layout::word_wrapping::TRUNCATE, false,
-			ui().colors().text_color(), UI_GREEN_COLOR, 1.0f);
-
 	if (selectedref)
 	{
 		option &selected_sm_option(*reinterpret_cast<option *>(selectedref));
@@ -467,9 +475,9 @@ void submenu::custom_render(void *selectedref, float top, float bottom, float or
 			char const *const bottomtext[] = { selected_sm_option.entry->description() };
 			draw_text_box(
 					std::begin(bottomtext), std::end(bottomtext),
-					origx1, origx2, origy2 + ui().box_tb_border(), origy2 + bottom,
+					origx1, origx2, origy2 + tb_border(), origy2 + bottom,
 					text_layout::text_justify::CENTER, text_layout::word_wrapping::TRUNCATE, false,
-					ui().colors().text_color(), ui().colors().background_color(), 1.0f);
+					ui().colors().text_color(), ui().colors().background_color());
 		}
 	}
 }

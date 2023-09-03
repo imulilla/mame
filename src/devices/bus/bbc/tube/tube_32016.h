@@ -60,6 +60,8 @@ protected:
 	memory_passthrough_handler m_rom_shadow_tap;
 
 	void tube_32016_mem(address_map &map);
+
+	void prst_w(int state);
 };
 
 

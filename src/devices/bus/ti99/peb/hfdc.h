@@ -46,7 +46,6 @@ public:
 protected:
 	virtual void device_config_complete() override;
 
-	virtual void device_timer(emu_timer &timer, device_timer_id id, int param) override;
 	virtual void device_start() override;
 	virtual void device_reset() override;
 
@@ -54,10 +53,12 @@ protected:
 	virtual void device_add_mconfig(machine_config &config) override;
 	virtual ioport_constructor device_input_ports() const override;
 
+	TIMER_CALLBACK_MEMBER(motor_off);
+
 private:
-	DECLARE_WRITE_LINE_MEMBER( dmarq_w );
-	DECLARE_WRITE_LINE_MEMBER( intrq_w );
-	DECLARE_WRITE_LINE_MEMBER( dip_w );
+	void dmarq_w(int state);
+	void intrq_w(int state);
+	void dip_w(int state);
 	void auxbus_out(offs_t offset, uint8_t data);
 	uint8_t read_buffer();
 	void write_buffer(uint8_t data);

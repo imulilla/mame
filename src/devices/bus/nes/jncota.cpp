@@ -1,5 +1,5 @@
 // license:BSD-3-Clause
-// copyright-holders: kmg, Fabio Priuli
+// copyright-holders:kmg
 /***********************************************************************************************************
 
 
@@ -18,12 +18,11 @@
 
 
 #ifdef NES_PCB_DEBUG
-#define VERBOSE 1
+#define VERBOSE (LOG_GENERAL)
 #else
-#define VERBOSE 0
+#define VERBOSE (0)
 #endif
-
-#define LOG_MMC(x) do { if (VERBOSE) logerror x; } while (0)
+#include "logmacro.h"
 
 
 //-------------------------------------------------
@@ -50,7 +49,6 @@ void nes_jncota_kt1001_device::pcb_reset()
 {
 	prg32(0);
 	chr8(0, CHRROM);
-	set_nt_mirroring(PPU_MIRROR_HORZ);
 
 	m_reg[0] = m_reg[1] = m_reg[2] = 0;
 }
@@ -80,7 +78,7 @@ void nes_jncota_kt1001_device::pcb_reset()
 
 void nes_jncota_kt1001_device::write_l(offs_t offset, u8 data)
 {
-	LOG_MMC(("jncota_kt1001 write_h, offset: %04x, data: %02x\n", offset, data));
+	LOG("jncota_kt1001 write_h, offset: %04x, data: %02x\n", offset, data);
 
 	offset += 0x100;
 	switch (offset & 0x1803)

@@ -4,8 +4,6 @@
 #include "emu.h"
 #include "machine/sda2006.h"
 
-#include "fileio.h"
-
 //-------------------------------------------------
 //
 // Siemens SDA2006 512-bit (32x16) NV EEPROM
@@ -116,9 +114,10 @@ void sda2006_device::nvram_default()
 //  .nv file
 //-------------------------------------------------
 
-void sda2006_device::nvram_read(emu_file &file)
+bool sda2006_device::nvram_read(util::read_stream &file)
 {
-	file.read(m_eeprom_data, EEPROM_CAPACITY);
+	size_t actual;
+	return !file.read(m_eeprom_data, EEPROM_CAPACITY, actual) && actual == EEPROM_CAPACITY;
 }
 
 //-------------------------------------------------
@@ -126,22 +125,23 @@ void sda2006_device::nvram_read(emu_file &file)
 //  .nv file
 //-------------------------------------------------
 
-void sda2006_device::nvram_write(emu_file &file)
+bool sda2006_device::nvram_write(util::write_stream &file)
 {
-	file.write(m_eeprom_data, EEPROM_CAPACITY);
+	size_t actual;
+	return !file.write(m_eeprom_data, EEPROM_CAPACITY, actual) && actual == EEPROM_CAPACITY;
 }
 
-READ_LINE_MEMBER( sda2006_device::read_data )
+int sda2006_device::read_data()
 {
 	return m_latch^1;
 }
 
-WRITE_LINE_MEMBER( sda2006_device::write_data )
+void sda2006_device::write_data(int state)
 {
 	m_latch = state;
 }
 
-WRITE_LINE_MEMBER( sda2006_device::write_enable )
+void sda2006_device::write_enable(int state)
 {
 	if( (m_write_state ^ state) && (!state)){  //falling edge
 		m_is_end_o_stream = true;
@@ -150,7 +150,7 @@ WRITE_LINE_MEMBER( sda2006_device::write_enable )
 	m_write_state = state;
 }
 
-WRITE_LINE_MEMBER( sda2006_device::write_clock )
+void sda2006_device::write_clock(int state)
 {
 	if( (m_clock_state ^ state) && (!state)) { // falling edge
 

@@ -59,8 +59,6 @@ sensor state instead.
 #include "emu.h"
 #include "machine/sensorboard.h"
 
-#include "fileio.h"
-
 
 DEFINE_DEVICE_TYPE(SENSORBOARD, sensorboard_device, "sensorboard", "Sensorboard")
 
@@ -71,7 +69,7 @@ DEFINE_DEVICE_TYPE(SENSORBOARD, sensorboard_device, "sensorboard", "Sensorboard"
 sensorboard_device::sensorboard_device(const machine_config &mconfig, const char *tag, device_t *owner, uint32_t clock) :
 	device_t(mconfig, SENSORBOARD, tag, owner, clock),
 	device_nvram_interface(mconfig, *this),
-	m_out_piece(*this, "piece_%c%u", 0U + 'a', 1U),
+	m_out_piece(*this, "piece_%c%u", unsigned('a'), 1U),
 	m_out_pui(*this, "piece_ui%u", 0U),
 	m_out_count(*this, "count_ui%u", 0U),
 	m_inp_rank(*this, "RANK.%u", 1),
@@ -79,8 +77,8 @@ sensorboard_device::sensorboard_device(const machine_config &mconfig, const char
 	m_inp_ui(*this, "UI"),
 	m_inp_conf(*this, "CONF"),
 	m_custom_init_cb(*this),
-	m_custom_sensor_cb(*this),
-	m_custom_spawn_cb(*this),
+	m_custom_sensor_cb(*this, 0),
+	m_custom_spawn_cb(*this, 0),
 	m_custom_output_cb(*this)
 {
 	m_nvram_auto = false;
@@ -103,21 +101,15 @@ sensorboard_device::sensorboard_device(const machine_config &mconfig, const char
 
 void sensorboard_device::device_start()
 {
-	// resolve handlers
-	m_custom_init_cb.resolve_safe();
-	m_custom_sensor_cb.resolve_safe(0);
-	m_custom_spawn_cb.resolve();
-	m_custom_output_cb.resolve();
-
-	if (m_custom_output_cb.isnull())
+	if (m_custom_output_cb.isunset())
 	{
 		m_out_piece.resolve();
 		m_out_pui.resolve();
 		m_out_count.resolve();
 	}
 
-	m_undotimer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(sensorboard_device::undo_tick),this));
-	m_sensortimer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(sensorboard_device::sensor_off),this));
+	m_undotimer = timer_alloc(FUNC(sensorboard_device::undo_tick), this);
+	m_sensortimer = timer_alloc(FUNC(sensorboard_device::sensor_off), this);
 	cancel_sensor();
 
 	u16 wmask = ~((1 << m_width) - 1);
@@ -217,23 +209,25 @@ void sensorboard_device::nvram_default()
 	m_custom_init_cb(1);
 }
 
-void sensorboard_device::nvram_read(emu_file &file)
+bool sensorboard_device::nvram_read(util::read_stream &file)
 {
-	file.read(m_curstate, sizeof(m_curstate));
+	size_t actual;
+	return !file.read(m_curstate, sizeof(m_curstate), actual) && actual == sizeof(m_curstate);
 }
 
-void sensorboard_device::nvram_write(emu_file &file)
+bool sensorboard_device::nvram_write(util::write_stream &file)
 {
 	// save last board position
-	file.write(m_curstate, sizeof(m_curstate));
+	size_t actual;
+	return !file.write(m_curstate, sizeof(m_curstate), actual) && actual == sizeof(m_curstate);
 }
 
-bool sensorboard_device::nvram_can_write()
+bool sensorboard_device::nvram_can_write() const
 {
 	return nvram_on();
 }
 
-bool sensorboard_device::nvram_on()
+bool sensorboard_device::nvram_on() const
 {
 	return (m_inp_conf->read() & 3) ? bool(m_inp_conf->read() & 2) : m_nvram_auto;
 }
@@ -319,7 +313,10 @@ u16 sensorboard_device::read_rank(u8 y, bool reverse)
 
 void sensorboard_device::refresh()
 {
-	bool custom_out = !m_custom_output_cb.isnull();
+	if (machine().phase() < machine_phase::RESET)
+		return;
+
+	bool custom_out = !m_custom_output_cb.isunset();
 
 	// output spawn icons
 	for (int i = 0; i < m_maxspawn; i++)
@@ -508,7 +505,7 @@ INPUT_CHANGED_MEMBER(sensorboard_device::ui_spawn)
 	m_handpos = -1;
 
 	// optional callback to change piece id
-	if (!m_custom_spawn_cb.isnull())
+	if (!m_custom_spawn_cb.isunset())
 		m_hand = m_custom_spawn_cb(pos);
 
 	refresh();

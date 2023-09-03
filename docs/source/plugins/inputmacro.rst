@@ -55,12 +55,12 @@ whole:
   descriptive.  Press the UI Select key (Return/Enter on the keyboard or the
   first button on the first joystick by default) to edit the current name, or
   press the UI Clear key to type a new name.  Press the UI Select key before
-  moving to another menu item to save the new name; press the UI Cancel key
+  moving to another menu item to save the new name; press the UI Back key
   (Escape/Esc on the keyboard by default) to change discard the new name.
-* Select **Activation sequence** to set the key or button combination you want
-  to use to activate the macro.  Keep in mind that regular input settings still
-  apply, so you probably want to use a combination that isn’t being used for any
-  other emulated input in the system.
+* Select **Activation combination** to set the control (or combination of
+  controls) you want to use to activate the macro.  Keep in mind that regular
+  input assignments still apply, so you will probably want to use a combination
+  that isn’t being used for any other emulated input in the system.
 * Set **On release** to specify what should happen if the activation sequence is
   released before the macro completes.  When set to *Stop immediately*, any
   emulated inputs activated by the macro will be released immediately, and no
@@ -112,11 +112,11 @@ When creating a new macro, there is a **Cancel** option that changes to
 **Create** after you set the activating sequence and the first input for the
 initially created step.  Select **Create** to finish creating the macro and
 return to the list of input macros.  The new macro will be added at the end of
-the list.  Press the UI Cancel key, or select **Cancel** before setting the
+the list.  Press the UI Back key, or select **Cancel** before setting the
 activation sequence/input, to return to the previous menu without creating the
 new macro.
 
-When editing an existing macro, select **Done** or press the UI Cancel key to
+When editing an existing macro, select **Done** or press the UI Back key to
 return to the list of input macros.  Changes take effect immediately.
 
 
@@ -133,7 +133,7 @@ thing could be achieved using the :ref:`plugins-autofire`, but this demonstrates
 a simple looping macro:
 
 * **Name**: P1 Autofire
-* **Activation sequence**: Kbd Space
+* **Activation combination**: Kbd Space
 * **On release**: Stop immediately
 * **When held**: Loop to step 2
 * **Step 1**:
@@ -159,7 +159,7 @@ This allows you to run in Konami Track & Field by holding a single button.  This
 takes most of the skill (and fun) out of the game:
 
 * **Name**: P1 Sprint
-* **Activation sequence**: Kbd Shift
+* **Activation combination**: Kbd Shift
 * **On release**: Stop immediately
 * **When held**: Loop to step 2
 * **Step 1**:
@@ -188,7 +188,7 @@ This macro allows you to perform a right-facing Shōryūken (Dragon Punch) by
 pressing a single key:
 
 * **Name**: 1P Shoryuken LP
-* **Activation sequence**: Kbd M
+* **Activation combination**: Kbd M
 * **On release**: Complete macro
 * **When held**: Prolong step 6
 * **Step 1**:

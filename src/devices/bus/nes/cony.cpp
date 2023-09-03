@@ -19,12 +19,11 @@
 
 
 #ifdef NES_PCB_DEBUG
-#define VERBOSE 1
+#define VERBOSE (LOG_GENERAL)
 #else
-#define VERBOSE 0
+#define VERBOSE (0)
 #endif
-
-#define LOG_MMC(x) do { if (VERBOSE) logerror x; } while (0)
+#include "logmacro.h"
 
 
 //-------------------------------------------------
@@ -62,7 +61,7 @@ nes_yoko_device::nes_yoko_device(const machine_config &mconfig, const char *tag,
 void nes_cony_device::device_start()
 {
 	common_start();
-	irq_timer = timer_alloc(TIMER_IRQ);
+	irq_timer = timer_alloc(FUNC(nes_cony_device::irq_timer_tick), this);
 	irq_timer->adjust(attotime::zero, 0, clocks_to_attotime(1));
 
 	save_item(NAME(m_irq_enable));
@@ -112,25 +111,22 @@ void nes_cony_device::pcb_reset()
 
  -------------------------------------------------*/
 
-void nes_cony_device::device_timer(emu_timer &timer, device_timer_id id, int param)
+TIMER_CALLBACK_MEMBER(nes_cony_device::irq_timer_tick)
 {
-	if (id == TIMER_IRQ)
+	if (m_irq_enable)
 	{
-		if (m_irq_enable)
+		m_irq_count += BIT(m_mode_reg, 6) ? -1 : 1;
+		if (!m_irq_count)
 		{
-			m_irq_count += BIT(m_mode_reg, 6) ? -1 : 1;
-			if (!m_irq_count)
-			{
-				set_irq_line(ASSERT_LINE);
-				m_irq_enable = 0;
-			}
+			set_irq_line(ASSERT_LINE);
+			m_irq_enable = 0;
 		}
 	}
 }
 
 void nes_cony_device::write_l(offs_t offset, u8 data)
 {
-	LOG_MMC(("cony write_l, offset: %04x, data: %02x\n", offset, data));
+	LOG("cony write_l, offset: %04x, data: %02x\n", offset, data);
 
 	offset += 0x100;
 	if (offset >= m_extra_addr) // scratch ram from 0x5100 or 0x5400
@@ -139,7 +135,7 @@ void nes_cony_device::write_l(offs_t offset, u8 data)
 
 u8 nes_cony_device::read_l(offs_t offset)
 {
-	LOG_MMC(("cony read_l, offset: %04x\n", offset));
+	LOG("cony read_l, offset: %04x\n", offset);
 
 	offset += 0x100;
 	if (offset >= m_extra_addr) // scratch ram from 0x5100 or 0x5400
@@ -152,7 +148,7 @@ u8 nes_cony_device::read_l(offs_t offset)
 
 void nes_cony_device::write_m(offs_t offset, u8 data)
 {
-	LOG_MMC(("cony write_m, offset: %04x, data: %02x\n", offset, data));
+	LOG("cony write_m, offset: %04x, data: %02x\n", offset, data);
 
 	if (!m_battery.empty())
 		m_battery[((m_outer_reg >> 6) * 0x2000 + offset) & (m_battery.size() - 1)] = data;
@@ -160,7 +156,7 @@ void nes_cony_device::write_m(offs_t offset, u8 data)
 
 u8 nes_cony_device::read_m(offs_t offset)
 {
-	LOG_MMC(("cony read_m, offset: %04x\n", offset));
+	LOG("cony read_m, offset: %04x\n", offset);
 
 	if (!m_battery.empty())
 		return m_battery[((m_outer_reg >> 6) * 0x2000 + offset) & (m_battery.size() - 1)];
@@ -204,7 +200,7 @@ void nes_cony_device::set_chr()
 
 void nes_cony_device::write_h(offs_t offset, u8 data)
 {
-	LOG_MMC(("cony write_h, offset: %04x, data: %02x\n", offset, data));
+	LOG("cony write_h, offset: %04x, data: %02x\n", offset, data);
 
 	switch (offset & 0x0300)
 	{
@@ -283,7 +279,7 @@ void nes_cony1k_device::set_chr()
 
 void nes_yoko_device::write_h(offs_t offset, u8 data)
 {
-	LOG_MMC(("yoko write_h, offset: %04x, data: %02x\n", offset, data));
+	LOG("yoko write_h, offset: %04x, data: %02x\n", offset, data);
 
 	offset = (offset & 0xf0ff) | (offset & 0x0c00) >> 2;
 	nes_cony_device::write_h(offset, data);

@@ -20,6 +20,20 @@
 
 
 //**************************************************************************
+//  HELPER FUNCTIONS
+//**************************************************************************
+
+namespace {
+
+constexpr u8 sanitise_character(u8 ch)
+{
+	// assume ISO-8859-1 (low 256 Unicode codepoints) - tab, soft hyphen, C0 and C1 cause problems
+	return ('\t' == ch) ? ' ' : (0xadU == ch) ? '-' : ((' ' > ch) || (('~' < ch) && (0xa0U > ch))) ? '.' : ch;
+}
+
+} // anonymous namespace
+
+//**************************************************************************
 //  GLOBAL VARIABLES
 //**************************************************************************
 
@@ -295,13 +309,13 @@ void debug_view_memory::generate_row(debug_view_char *destmin, debug_view_char *
 
 	// generate the address
 	char addrtext[20];
-	sprintf(addrtext, m_addrformat.c_str(), address);
+	snprintf(addrtext, 20, m_addrformat.c_str(), address);
 	debug_view_char *dest = destrow + m_section[0].m_pos + 1;
 	for (int ch = 0; addrtext[ch] != 0 && ch < m_section[0].m_width - 1; ch++, dest++)
 		if (dest >= destmin && dest < destmax)
 			dest->byte = addrtext[ch];
 
-	// generate the data and the ascii string
+	// generate the data and the ASCII string
 	std::string chunkascii;
 	if (m_shift_bits != 0)
 	{
@@ -323,7 +337,7 @@ void debug_view_memory::generate_row(debug_view_char *destmin, debug_view_char *
 			for (int i = 0; i < m_bytes_per_chunk; i++)
 			{
 				u8 chval = chunkdata >> (8 * (m_bytes_per_chunk - i - 1));
-				chunkascii += char((ismapped && isprint(chval)) ? chval : '.');
+				chunkascii += char(ismapped ? sanitise_character(chval) : '.');
 			}
 		}
 	}
@@ -345,15 +359,15 @@ void debug_view_memory::generate_row(debug_view_char *destmin, debug_view_char *
 				switch (m_data_format)
 				{
 				case data_format::FLOAT_32BIT:
-					sprintf(valuetext, "%.8g", u32_to_float(u32(chunkdata)));
+					snprintf(valuetext, 64, "%.8g", u32_to_float(u32(chunkdata)));
 					break;
 				case data_format::FLOAT_64BIT:
-					sprintf(valuetext, "%.24g", u64_to_double(chunkdata));
+					snprintf(valuetext, 64, "%.24g", u64_to_double(chunkdata));
 					break;
 				case data_format::FLOAT_80BIT:
 				{
 					float64_t f64 = extF80M_to_f64(&chunkdata80);
-					sprintf(valuetext, "%.24g", u64_to_double(f64.v));
+					snprintf(valuetext, 64, "%.24g", u64_to_double(f64.v));
 					break;
 				}
 				default:
@@ -380,7 +394,7 @@ void debug_view_memory::generate_row(debug_view_char *destmin, debug_view_char *
 			for (int i = 0; i < m_bytes_per_chunk; i++)
 			{
 				u8 chval = chunkdata >> (8 * (m_bytes_per_chunk - i - 1));
-				chunkascii += char((ismapped && isprint(chval)) ? chval : '.');
+				chunkascii += char(ismapped ? sanitise_character(chval) : '.');
 			}
 		}
 	}
@@ -526,16 +540,8 @@ void debug_view_memory::view_char(int chval)
 				if (hexchar == nullptr || (m_shift_bits == 3 && chval >= '8'))
 					break;
 
-				const debug_view_memory_source &source = downcast<const debug_view_memory_source &>(*m_source);
-				offs_t address = (source.m_space != nullptr) ? source.m_space->byte_to_address(pos.m_address) : pos.m_address;
-				u64 data;
-				bool ismapped = read(m_bytes_per_chunk, address, data);
-				if (!ismapped)
-					break;
-
-				data &= ~(util::make_bitmask<u64>(m_shift_bits) << pos.m_shift);
-				data |= u64(hexchar - hexvals) << pos.m_shift;
-				write(m_bytes_per_chunk, address, data);
+				if (!write_digit(pos.m_address, pos.m_shift, hexchar - hexvals))
+					break; // TODO: alert OSD?
 			}
 			// fall through to the right-arrow press
 			[[fallthrough]];
@@ -856,14 +862,17 @@ bool debug_view_memory::read(u8 size, offs_t offs, u64 &data)
 		auto dis = machine().disable_side_effects();
 
 		bool ismapped = offs <= m_maxaddr;
+		address_space *tspace;
 		if (ismapped && !m_no_translation)
 		{
 			offs_t dummyaddr = offs;
-			ismapped = source.m_memintf->translate(source.m_space->spacenum(), TRANSLATE_READ_DEBUG, dummyaddr);
+			ismapped = source.m_memintf->translate(source.m_space->spacenum(), device_memory_interface::TR_READ, dummyaddr, tspace);
 		}
+		else
+			tspace = source.m_space;
 		data = ~u64(0);
 		if (ismapped)
-			data = m_expression.context().read_memory(*source.m_space, offs, size, !m_no_translation);
+			data = m_expression.context().read_memory(*tspace, offs, size, !m_no_translation);
 		return ismapped;
 	}
 
@@ -980,6 +989,41 @@ void debug_view_memory::write(u8 size, offs_t offs, u64 data)
 	if (offs >= (source.m_blocklength * source.m_numblocks))
 		return;
 	*(reinterpret_cast<u8 *>(source.m_base) + (offs / source.m_blocklength * source.m_blockstride) + (offs % source.m_blocklength)) = data;
+}
+
+
+//-------------------------------------------------
+//  write_digit - write one hex or octal digit
+//  at the given address and bit position
+//-------------------------------------------------
+
+bool debug_view_memory::write_digit(offs_t offs, u8 pos, u8 digit)
+{
+	const debug_view_memory_source &source = downcast<const debug_view_memory_source &>(*m_source);
+	offs_t address = (source.m_space != nullptr) ? source.m_space->byte_to_address(offs) : offs;
+	u64 data;
+	bool ismapped = read(m_bytes_per_chunk, address, data);
+	if (!ismapped)
+		return false;
+
+	// clamp to chunk size
+	if (m_bytes_per_chunk * 8 < pos + m_shift_bits)
+	{
+		assert(m_bytes_per_chunk * 8 > pos);
+		digit &= util::make_bitmask<u8>(m_bytes_per_chunk * 8 - pos);
+	}
+
+	u64 write_data = (data & ~(util::make_bitmask<u64>(m_shift_bits) << pos)) | (u64(digit) << pos);
+	write(m_bytes_per_chunk, address, write_data);
+
+	// verify that data reads back as it was written
+	if (source.m_space != nullptr)
+	{
+		read(m_bytes_per_chunk, address, data);
+		return data == write_data;
+	}
+	else
+		return true;
 }
 
 

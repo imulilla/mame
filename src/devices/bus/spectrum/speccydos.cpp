@@ -72,7 +72,7 @@ static void speccydos_floppies(device_slot_interface &device)
 }
 
 //-------------------------------------------------
-//  floppy_format_type floppy_formats
+//  floppy_formats
 //-------------------------------------------------
 
 void spectrum_speccydos_device::floppy_formats(format_registration &fr)
@@ -168,7 +168,7 @@ void spectrum_speccydos_device::device_reset()
 //  IMPLEMENTATION
 //**************************************************************************
 
-READ_LINE_MEMBER(spectrum_speccydos_device::romcs)
+int spectrum_speccydos_device::romcs()
 {
 	return m_romcs | m_exp->romcs();
 }

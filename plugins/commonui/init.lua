@@ -106,7 +106,7 @@ function commonui.input_selection_menu(action, title, filter)
 
 	function menu:handle(index, event)
 		local selection
-		if (event == 'cancel') or ((index == input_item_cancel) and (event == 'select')) then
+		if (event == 'back') or ((index == input_item_cancel) and (event == 'select')) then
 			action(nil)
 			return true
 		elseif event == 'select' then
@@ -177,16 +177,18 @@ function commonui.switch_polling_helper(starting_sequence)
 		if uiinput:pressed(cancel) then
 			-- UI_CANCEL pressed, abort
 			machine:popmessage()
+			uiinput:reset()
 			if (not poller.modified) or (modified_ticks == emu.osd_ticks()) then
 				-- cancelled immediately
-				self.sequence = nil
-				return true -- TODO: communicate this better?
+				self.sequence = nil -- TODO: communicate this better?
+				return true
 			else
 				-- entered something before cancelling
 				self.sequence = nil
 				return true
 			end
 		elseif poller:poll() then
+			uiinput:reset()
 			if poller.valid then
 				-- valid sequence entered
 				machine:popmessage()
@@ -194,13 +196,13 @@ function commonui.switch_polling_helper(starting_sequence)
 				return true
 			else
 				-- invalid sequence entered
-				machine:popmessage(_p('plugin-commonui', 'Invalid sequence entered'))
+				machine:popmessage(_p('plugin-commonui', 'Invalid combination entered'))
 				self.sequence = nil
 				return true
 			end
 		else
 			machine:popmessage(string.format(
-					_p('plugin-commonui', 'Enter sequence or press %s to cancel\n%s'),
+					_p('plugin-commonui', 'Enter combination or press %s to cancel\n%s'),
 					cancel_prompt,
 					input:seq_name(poller.sequence)))
 			return false

@@ -14,6 +14,8 @@
 #include "rendlay.h"
 #include "rendutil.h"
 
+#include "utf8.h"
+
 
 namespace ui {
 
@@ -37,13 +39,14 @@ constexpr uintptr_t ITEM_VIEW_FIRST     = 0x00000300;
 menu_video_targets::menu_video_targets(mame_ui_manager &mui, render_container &container)
 	: menu(mui, container)
 {
+	set_heading(_("Video Options"));
 }
 
 menu_video_targets::~menu_video_targets()
 {
 }
 
-void menu_video_targets::populate(float &customtop, float &custombottom)
+void menu_video_targets::populate()
 {
 	// find the targets
 	for (unsigned targetnum = 0; ; targetnum++)
@@ -67,7 +70,7 @@ void menu_video_targets::populate(float &customtop, float &custombottom)
     menu
 -------------------------------------------------*/
 
-void menu_video_targets::handle(event const *ev)
+bool menu_video_targets::handle(event const *ev)
 {
 	if (ev && (ev->iptkey == IPT_UI_SELECT))
 	{
@@ -79,6 +82,8 @@ void menu_video_targets::handle(event const *ev)
 				*target,
 				&machine().video().snapshot_target() == target);
 	}
+
+	return false;
 }
 
 
@@ -90,36 +95,18 @@ void menu_video_targets::handle(event const *ev)
 menu_video_options::menu_video_options(
 		mame_ui_manager &mui,
 		render_container &container,
+		std::string_view title,
 		render_target &target,
 		bool snapshot)
 	: menu(mui, container)
 	, m_target(target)
-	, m_title()
-	, m_show_title(false)
 	, m_snapshot(snapshot)
 {
+	set_heading(util::string_format(_("Video Options: %1$s"), title));
+
 	if (!m_snapshot || !machine().video().snap_native())
 	{
 		set_selected_index(target.view());
-		reset(reset_options::REMEMBER_POSITION);
-	}
-}
-
-menu_video_options::menu_video_options(
-		mame_ui_manager &mui,
-		render_container &container,
-		std::string &&title,
-		render_target &target,
-		bool snapshot)
-	: menu(mui, container)
-	, m_target(target)
-	, m_title(std::move(title))
-	, m_show_title(true)
-	, m_snapshot(snapshot)
-{
-	if (!m_snapshot || !machine().video().snap_native())
-	{
-		set_selected_index(target.view() + 2);
 		reset(reset_options::REMEMBER_POSITION);
 	}
 }
@@ -128,16 +115,9 @@ menu_video_options::~menu_video_options()
 {
 }
 
-void menu_video_options::populate(float &customtop, float &custombottom)
+void menu_video_options::populate()
 {
 	uintptr_t ref;
-
-	// add title if requested
-	if (m_show_title)
-	{
-		item_append(m_title, FLAG_DISABLE, nullptr);
-		item_append(menu_item_type::SEPARATOR);
-	}
 
 	// add items for each view
 	if (!m_snapshot || !machine().video().snap_native())
@@ -222,9 +202,14 @@ void menu_video_options::populate(float &customtop, float &custombottom)
     menu
 -------------------------------------------------*/
 
-void menu_video_options::handle(event const *ev)
+bool menu_video_options::handle(event const *ev)
 {
-	auto const lockout_popup([this] () { machine().popmessage(_("Cannot change options while recording!")); });
+	auto const lockout_popup(
+			[this] ()
+			{
+				machine().popmessage(_("Cannot change options while recording!"));
+				return true;
+			});
 	bool const snap_lockout(m_snapshot && machine().video().is_recording());
 	bool changed(false);
 
@@ -362,6 +347,7 @@ void menu_video_options::handle(event const *ev)
 	// if something changed, rebuild the menu
 	if (changed)
 		reset(reset_options::REMEMBER_REF);
+	return false;
 }
 
 } // namespace ui

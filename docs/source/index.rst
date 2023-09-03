@@ -26,8 +26,10 @@ MAME Documentation
     advanced/index
 
     debugger/index
+    luascript/index
     tools/index
 
+    contributing/index
     techspecs/index
 
     security

@@ -79,7 +79,7 @@ hd61830_device::hd61830_device(const machine_config &mconfig, const char *tag, d
 	device_t(mconfig, HD61830, tag, owner, clock),
 	device_memory_interface(mconfig, *this),
 	device_video_interface(mconfig, *this),
-	m_read_rd(*this),
+	m_read_rd(*this, 0),
 	m_bf(false),
 	m_cac(0),
 	m_blink(0),
@@ -97,10 +97,7 @@ hd61830_device::hd61830_device(const machine_config &mconfig, const char *tag, d
 void hd61830_device::device_start()
 {
 	// allocate timers
-	m_busy_timer = timer_alloc();
-
-	// resolve callbacks
-	m_read_rd.resolve_safe(0);
+	m_busy_timer = timer_alloc(FUNC(hd61830_device::clear_busy_flag), this);
 
 	// register for state saving
 	save_item(NAME(m_bf));
@@ -134,12 +131,11 @@ void hd61830_device::device_reset()
 
 
 //-------------------------------------------------
-//  device_timer - handler timer events
+//  clear_busy_flag -
 //-------------------------------------------------
 
-void hd61830_device::device_timer(emu_timer &timer, device_timer_id id, int param)
+TIMER_CALLBACK_MEMBER(hd61830_device::clear_busy_flag)
 {
-	// clear busy flag
 	m_bf = false;
 }
 

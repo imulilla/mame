@@ -3,7 +3,6 @@
 #include "emu.h"
 #include "nscsi_bus.h"
 
-#define LOG_GENERAL     (1U << 0)
 #define LOG_UNSUPPORTED (1U << 1)
 #define LOG_STATE       (1U << 2)
 #define LOG_CONTROL     (1U << 3)
@@ -199,17 +198,17 @@ nscsi_full_device::nscsi_full_device(const machine_config &mconfig, device_type 
 }
 
 const char *const nscsi_full_device::command_names[256] = {
-	/* 00 */ "TEST_UNIT_READY", "REZERO", "?", "REQUEST_SENSE", "FORMAT_UNIT", "?", "?", "REASSIGN_BLOCKS",
-	/* 08 */ "READ_6/RECIEVE", "?", "WRITE_6/SEND", "SEEK", "?", "?", "?", "?",
-	/* 10 */ "?", "?", "INQUIRY", "?", "?", "MODE_SELECT_6", "RESERVE_6", "RELEASE_6",
-	/* 18 */ "?", "?", "MODE_SENSE_6", "START_STOP_UNIT", "RECIEVE_DIAG_RES", "SEND_DIAGNOSTICS", "PREVENT_ALLOW_MEDIUM_REMOVAL", "?",
-	/* 20 */ "?", "?", "?", "READ_FORMAT_CAPACITIES", "?", "READ_CAPACITY", "?", "?",
+	/* 00 */ "TEST_UNIT_READY", "REWIND/REZERO_UNIT", "REQUEST_BLOCK_ADDRESS", "REQUEST_SENSE", "FORMAT/FORMAT_UNIT", "READ_BLOCK_LIMITS", "?", "INITIALIZE_ELEMENT_STATUS/REASSIGN_BLOCKS",
+	/* 08 */ "GET_MESSAGE_6/READ_6/RECEIVE", "?", "PRINT/SEND_MESSAGE_6/SEND_6/WRITE_6", "SEEK_6/SLEW_AND_PRINT", "SEEK_BLOCK", "?", "?", "READ_REVERSE",
+	/* 10 */ "SYNCHRONIZE_BUFFER/WRITE_FILEMARKS", "SPACE", "INQUIRY", "VERIFY_6", "RECOVER_BUFFERED_DATA", "MODE_SELECT_6", "RESERVE_6/RESERVE_UNIT", "RELEASE_6/RELEASE_UNIT",
+	/* 18 */ "COPY", "ERASE", "MODE_SENSE_6", "LOAD_UNLOAD/SCAN/STOP_PRINT/START_STOP_UNIT", "RECEIVE_DIAGNOSTIC_RESULTS", "SEND_DIAGNOSTIC", "PREVENT_ALLOW_MEDIUM_REMOVAL", "?",
+	/* 20 */ "?", "?", "?", "READ_FORMAT_CAPACITIES", "SET_WINDOW", "GET_WINDOW/READ_CAPACITY/READ_CD_RECORDED_CAPACITY", "?", "?",
 
-	/* 28 */ "READ_10", "READ_GENERATION", "WRITE_10", "SEEK_10", "ERASE_10", "READ_UPDATED_BLOCK_10", "WRITE_VERIFY", "VERIFY",
-	/* 30 */ "SEARCH_DATA_HIGH_10", "SEARCH_DATA_EQUAL_10", "SEARCH_DATA_LOW_10", "SET_LIMITS_10", "PREFETCH", "SYNC_CACHE", "LOCK_UNLOCK_CACHE", "READ_DEFECT_DATA",
-	/* 38 */ "MEDIUM_SCAN", "COMPARE", "COPY_AND_VERIFY", "WRITE_BUFFER", "READ_DATA_BUFFER", "UPDATE_BLOCK", "READ_LONG", "WRITE_LONG",
+	/* 28 */ "GET_MESSAGE_10/READ_10", "READ_GENERATION", "SEND_MESSAGE_10/SEND_10/WRITE_10", "LOCATE/POSITION_TO_ELEMENT/SEEK_10", "ERASE_10", "READ_UPDATED_BLOCK", "WRITE_AND_VERIFY_10", "VERIFY_10",
+	/* 30 */ "SEARCH_DATA_HIGH_10", "OBJECT_POSITION/SEARCH_DATA_EQUAL_10", "SEARCH_DATA_LOW_10", "SET_LIMITS_10", "PREFETCH/READ_POSITION", "SYNCHRONIZE_CACHE", "LOCK_UNLOCK_CACHE", "READ_DEFECT_DATA_10",
+	/* 38 */ "MEDIUM_SCAN", "COMPARE", "COPY_AND_VERIFY", "WRITE_BUFFER", "READ_BUFFER", "UPDATE_BLOCK", "READ_LONG", "WRITE_LONG",
 	/* 40 */ "CHANGE_DEFINITION", "WRITE_SAME", "READ_SUB_CHANNEL", "READ_TOC_PMA_ATIP", "READ_HEADER", "PLAY_AUDIO_10", "GET_CONFIGURATION", "PLAY_AUDIO_MSF",
-	/* 48 */ "PLAY_AUDIO_TRACK_INDEX", "PLAY_RELATIVE_10", "GET_EVENT_STATUS_NOTIFICATION", "PAUSE_RESUME", "LOG_SELECT", "LOG_SENSE", "STOP_PLAY_SCAN", "?",
+	/* 48 */ "PLAY_AUDIO_TRACK_INDEX", "PLAY_TRACK_RELATIVE_10", "GET_EVENT_STATUS_NOTIFICATION", "PAUSE_RESUME", "LOG_SELECT", "LOG_SENSE", "STOP_PLAY_SCAN", "?",
 	/* 50 */ "XDWRITE", "READ_DISC_INFORMATION/XPWRITE", "READ_TRACK_INFORMATION/XDREAD", "RESERVE_TRACK", "SEND_OPC_INFORMATION", "MODE_SELECT_10", "RESERVE_10", "RELEASE_10",
 	/* 58 */ "REPAIR_TRACK", "READ_MASTER_CUE", "MODE_SENSE_10", "CLOSE_TRACK_SESSION", "READ_BUFFER_CAPACITY", "SEND_CUE_SHEET", "PERSISTENT_RESERVE_IN", "PERSISTENT_RESERVE_OUT",
 	/* 80 */ "XDWRITE_EXTENDED", "REBUILD", "REGENERATE", "EXTENDED_COPY", "RECEIVE_COPY_RESULTS", "?", "?", "?",
@@ -233,7 +232,7 @@ const char *const nscsi_full_device::command_names[256] = {
 void nscsi_full_device::device_start()
 {
 	nscsi_device::device_start();
-	scsi_timer = timer_alloc(SCSI_TIMER);
+	scsi_timer = timer_alloc(FUNC(nscsi_full_device::update_tick), this);
 	save_item(NAME(scsi_cmdbuf));
 	save_item(NAME(scsi_sense_buffer));
 	save_item(NAME(scsi_cmdsize));
@@ -266,13 +265,9 @@ void nscsi_full_device::device_reset()
 	sense(false, SK_NO_SENSE);
 }
 
-void nscsi_full_device::device_timer(emu_timer &timer, device_timer_id id, int param)
+TIMER_CALLBACK_MEMBER(nscsi_full_device::update_tick)
 {
-	if(id != SCSI_TIMER)
-		return;
-
-	step(true);
-
+	step(param);
 }
 
 void nscsi_full_device::scsi_ctrl_changed()
@@ -308,7 +303,7 @@ void nscsi_full_device::step(bool timeout)
 			if(scsi_initiator_id == 16)
 				scsi_initiator_id = -1;
 			scsi_state = TARGET_SELECT_WAIT_BUS_SETTLE;
-			scsi_timer->adjust(scsi_bus_settle_delay());
+			scsi_timer->adjust(scsi_bus_settle_delay(), true);
 		}
 		break;
 
@@ -340,7 +335,12 @@ void nscsi_full_device::step(bool timeout)
 		if(!(ctrl & S_ACK)) {
 			scsi_state &= STATE_MASK;
 			scsi_bus->ctrl_wait(scsi_refid, 0, S_ACK);
-			step(false);
+			attotime delay = scsi_data_byte_period();
+			if (delay == attotime::zero) {
+				step(false);
+			} else {
+				scsi_timer->adjust(delay, false);
+			}
 		}
 		break;
 
@@ -356,7 +356,12 @@ void nscsi_full_device::step(bool timeout)
 		if(!(ctrl & S_ACK)) {
 			scsi_state &= STATE_MASK;
 			scsi_bus->ctrl_wait(scsi_refid, 0, S_ACK);
-			step(false);
+			attotime delay = scsi_data_byte_period();
+			if (delay == attotime::zero) {
+				step(false);
+			} else {
+				scsi_timer->adjust(delay, false);
+			}
 		}
 		break;
 
@@ -464,7 +469,12 @@ void nscsi_full_device::step(bool timeout)
 			scsi_bus->ctrl_wait(scsi_refid, 0, S_ACK);
 			scsi_command();
 			scsi_state = TARGET_NEXT_CONTROL;
-			step(false);
+			attotime delay = scsi_data_command_delay();
+			if (delay == attotime::zero) {
+				step(false);
+			} else {
+				scsi_timer->adjust(delay, false);
+			}
 		} else
 			target_recv_byte();
 		break;
@@ -631,8 +641,8 @@ void nscsi_full_device::scsi_unknown_command()
 void nscsi_full_device::scsi_command()
 {
 	switch(scsi_cmdbuf[0]) {
-	case SC_REZERO:
-		LOG("command REZERO\n");
+	case SC_REZERO_UNIT:
+		LOG("command REZERO UNIT\n");
 		scsi_status_complete(SS_GOOD);
 		break;
 	case SC_REQUEST_SENSE:
@@ -791,4 +801,16 @@ attotime nscsi_full_device::scsi_fast_hold_time()
 attotime nscsi_full_device::scsi_fast_negation_period()
 {
 	return attotime::from_nsec(30);
+}
+
+// Byte transfer rate (immediate)
+attotime nscsi_full_device::scsi_data_byte_period()
+{
+	return attotime::zero;
+}
+
+// Command execution delay (immediate)
+attotime nscsi_full_device::scsi_data_command_delay()
+{
+	return attotime::zero;
 }

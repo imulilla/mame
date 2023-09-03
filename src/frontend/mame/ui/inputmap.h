@@ -28,8 +28,8 @@ public:
 	virtual ~menu_input_groups() override;
 
 private:
-	virtual void populate(float &customtop, float &custombottom) override;
-	virtual void handle(event const *ev) override;
+	virtual void populate() override;
+	virtual bool handle(event const *ev) override;
 };
 
 
@@ -64,9 +64,10 @@ protected:
 
 	menu_input(mame_ui_manager &mui, render_container &container);
 
-	virtual void menu_activated() override;
+	virtual void recompute_metrics(uint32_t width, uint32_t height, float aspect) override;
+	virtual void custom_render(void *selectedref, float top, float bottom, float x1, float y1, float x2, float y2) override;
 
-	void populate_sorted(float &customtop, float &custombottom);
+	void populate_sorted();
 	void toggle_none_default(input_seq &selected_seq, input_seq &original_seq, const input_seq &selected_defseq);
 
 	data_vector data;
@@ -83,8 +84,7 @@ private:
 	osd_ticks_t modified_ticks;
 	input_seq starting_seq;
 
-	virtual void custom_render(void *selectedref, float top, float bottom, float x1, float y1, float x2, float y2) override;
-	virtual void handle(event const *ev) override;
+	virtual bool handle(event const *ev) override;
 	virtual void update_input(input_item_data &seqchangeditem) = 0;
 };
 
@@ -92,11 +92,14 @@ private:
 class menu_input_general : public menu_input
 {
 public:
-	menu_input_general(mame_ui_manager &mui, render_container &container, int group);
+	menu_input_general(mame_ui_manager &mui, render_container &container, int group, std::string &&heading);
 	virtual ~menu_input_general() override;
 
+protected:
+	virtual void menu_activated() override;
+
 private:
-	virtual void populate(float &customtop, float &custombottom) override;
+	virtual void populate() override;
 	virtual void update_input(input_item_data &seqchangeditem) override;
 
 	const int group;
@@ -109,8 +112,11 @@ public:
 	menu_input_specific(mame_ui_manager &mui, render_container &container);
 	virtual ~menu_input_specific() override;
 
+protected:
+	virtual void menu_activated() override;
+
 private:
-	virtual void populate(float &customtop, float &custombottom) override;
+	virtual void populate() override;
 	virtual void update_input(input_item_data &seqchangeditem) override;
 };
 

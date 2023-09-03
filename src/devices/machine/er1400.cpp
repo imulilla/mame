@@ -24,8 +24,6 @@
 #include "emu.h"
 #include "machine/er1400.h"
 
-#include "fileio.h"
-
 #define VERBOSE 0
 #include "logmacro.h"
 
@@ -77,7 +75,7 @@ void er1400_device::device_start()
 	m_data_array = std::make_unique<u16[]>(100);
 	save_pointer(NAME(m_data_array), 100);
 
-	m_data_propagation_timer = timer_alloc(PROPAGATION_TIMER);
+	m_data_propagation_timer = timer_alloc(FUNC(er1400_device::propagate_data), this);
 }
 
 
@@ -106,9 +104,12 @@ void er1400_device::nvram_default()
 //  .nv file
 //-------------------------------------------------
 
-void er1400_device::nvram_read(emu_file &file)
+bool er1400_device::nvram_read(util::read_stream &file)
 {
-	file.read(&m_data_array[0], 100 * sizeof(m_data_array[0]));
+	size_t size = 100 * sizeof(m_data_array[0]);
+	size_t actual;
+
+	return !file.read(&m_data_array[0], size, actual) && actual == size;
 }
 
 
@@ -117,9 +118,12 @@ void er1400_device::nvram_read(emu_file &file)
 //  specified file
 //-------------------------------------------------
 
-void er1400_device::nvram_write(emu_file &file)
+bool er1400_device::nvram_write(util::write_stream &file)
 {
-	file.write(&m_data_array[0], 100 * sizeof(m_data_array[0]));
+	size_t size = 100 * sizeof(m_data_array[0]);
+	size_t actual;
+
+	return !file.write(&m_data_array[0], size, actual) && actual == size;
 }
 
 
@@ -241,7 +245,7 @@ void er1400_device::erase_data()
 //  data_w - write data input line
 //-------------------------------------------------
 
-WRITE_LINE_MEMBER(er1400_device::data_w)
+void er1400_device::data_w(int state)
 {
 	m_data_input = bool(state);
 }
@@ -251,7 +255,7 @@ WRITE_LINE_MEMBER(er1400_device::data_w)
 //  c1_w - write to first control line
 //-------------------------------------------------
 
-WRITE_LINE_MEMBER(er1400_device::c1_w)
+void er1400_device::c1_w(int state)
 {
 	if (bool(state) == BIT(m_code_input, 2))
 		return;
@@ -266,7 +270,7 @@ WRITE_LINE_MEMBER(er1400_device::c1_w)
 //  c2_w - write to second control line
 //-------------------------------------------------
 
-WRITE_LINE_MEMBER(er1400_device::c2_w)
+void er1400_device::c2_w(int state)
 {
 	if (bool(state) == BIT(m_code_input, 1))
 		return;
@@ -281,7 +285,7 @@ WRITE_LINE_MEMBER(er1400_device::c2_w)
 //  c3_w - write to third control line
 //-------------------------------------------------
 
-WRITE_LINE_MEMBER(er1400_device::c3_w)
+void er1400_device::c3_w(int state)
 {
 	if (bool(state) == BIT(m_code_input, 0))
 		return;
@@ -293,24 +297,18 @@ WRITE_LINE_MEMBER(er1400_device::c3_w)
 
 
 //-------------------------------------------------
-//  device_timer - called whenever a device timer
-//  fires
+//  propagate_data - clock data out from the chip
 //-------------------------------------------------
 
-void er1400_device::device_timer(emu_timer &timer, device_timer_id id, int param)
+TIMER_CALLBACK_MEMBER(er1400_device::propagate_data)
 {
-	switch (id)
+	if (m_code_input == 5)
 	{
-	case PROPAGATION_TIMER:
-		if (m_code_input == 5)
-		{
-			m_data_output = BIT(m_data_register, 13);
-			LOG("Data output %d bit\n", m_data_output);
-		}
-		else
-			m_data_output = false;
-		break;
+		m_data_output = BIT(m_data_register, 13);
+		LOG("Data output %d bit\n", m_data_output);
 	}
+	else
+		m_data_output = false;
 }
 
 
@@ -318,14 +316,14 @@ void er1400_device::device_timer(emu_timer &timer, device_timer_id id, int param
 //  clock_w - write to clock line
 //-------------------------------------------------
 
-WRITE_LINE_MEMBER(er1400_device::clock_w)
+void er1400_device::clock_w(int state)
 {
 	if (m_clock_input == bool(state))
 		return;
 	m_clock_input = bool(state);
 
 	// Commands are clocked by a logical 1 -> 0 transition (i.e. rising edge)
-	if (!state)
+	if (state)
 	{
 		if (machine().time() >= m_write_time)
 			write_data();
@@ -398,7 +396,7 @@ WRITE_LINE_MEMBER(er1400_device::clock_w)
 //  data_r - read data line
 //-------------------------------------------------
 
-READ_LINE_MEMBER(er1400_device::data_r)
+int er1400_device::data_r()
 {
-	return m_data_input | m_data_output;
+	return m_data_input & m_data_output;
 }

@@ -3,16 +3,19 @@ name: XML/JSON validation
 on:
   push:
     paths:
-    - '.github/**'
+    - '.github/workflows/**'
     - 'ctrlr/*'
     - 'hash/*'
     - 'plugins/**'
   pull_request:
     paths:
-    - '.github/**'
+    - '.github/workflows/**'
     - 'ctrlr/*'
     - 'hash/*'
     - 'plugins/**'
+
+permissions:
+  contents: read
 
 jobs:
   validate:

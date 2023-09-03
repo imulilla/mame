@@ -21,18 +21,17 @@ public:
 	auto &set_pulse_width(attotime pw) { assert(!pw.is_never()); m_pw = pw; reinit(); return *this; }
 	auto &set_duty_cycle(double duty) { assert(duty >= 0.0 && duty <= 1.0); m_duty = duty; m_pw = attotime::never; reinit(); return *this; }
 
-	DECLARE_READ_LINE_MEMBER(signal_r) { return m_signal; }
+	int signal_r() { return m_signal; }
 
 protected:
 	virtual void device_start() override;
 	virtual void device_reset() override { output(); }
-	virtual void device_timer(emu_timer &timer, device_timer_id id, int param) override;
 	virtual void device_clock_changed() override { reinit(); }
 
-private:
-	static constexpr device_timer_id TID_CLOCK_INIT = 0;
-	static constexpr device_timer_id TID_CLOCK_TICK = 1;
+	TIMER_CALLBACK_MEMBER(clock_init);
+	TIMER_CALLBACK_MEMBER(clock_tick);
 
+private:
 	void reinit();
 	void output();
 

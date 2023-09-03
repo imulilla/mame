@@ -16,9 +16,9 @@
 
     Multiple block read/write commands are not supported but would be straightforward to add.
 
-    Refrences:
+    References:
     https://www.sdcard.org/downloads/pls/ (Physical Layer Simplified Specification)
-    REF: tags are refering to the spec form above. 'Physical Layer Simplified Specification v8.00'
+    REF: tags are referring to the spec form above. 'Physical Layer Simplified Specification v8.00'
 
     http://www.dejazzer.com/ee379/lecture_notes/lec12_sd_card.pdf
     https://embdev.net/attachment/39390/TOSHIBA_SD_Card_Specification.pdf
@@ -29,7 +29,6 @@
 #include "spi_sdcard.h"
 #include "imagedev/harddriv.h"
 
-#define LOG_GENERAL (1U << 0)
 #define LOG_COMMAND (1U << 1)
 #define LOG_SPI     (1U << 2)
 
@@ -49,8 +48,7 @@ spi_sdcard_device::spi_sdcard_device(const machine_config &mconfig, device_type 
 	write_miso(*this),
 	m_image(*this, "image"),
 	m_state(SD_STATE_IDLE),
-	m_harddisk(nullptr),
-	m_ss(0), m_in_bit(0),
+	m_ss(0), m_in_bit(0), m_clk_state(0),
 	m_in_latch(0), m_out_latch(0xff), m_cur_bit(0),
 	m_out_count(0), m_out_ptr(0), m_write_ptr(0), m_blksize(512), m_blknext(0),
 	m_bACMD(false)
@@ -74,7 +72,6 @@ ALLOW_SAVE_TYPE(spi_sdcard_device::sd_type);
 
 void spi_sdcard_device::device_start()
 {
-	write_miso.resolve_safe();
 	save_item(NAME(m_state));
 	save_item(NAME(m_in_latch));
 	save_item(NAME(m_out_latch));
@@ -82,6 +79,7 @@ void spi_sdcard_device::device_start()
 	save_item(NAME(m_out_count));
 	save_item(NAME(m_ss));
 	save_item(NAME(m_in_bit));
+	save_item(NAME(m_clk_state));
 	save_item(NAME(m_cur_bit));
 	save_item(NAME(m_write_ptr));
 	save_item(NAME(m_blksize));
@@ -94,7 +92,6 @@ void spi_sdcard_device::device_start()
 
 void spi_sdcard_device::device_reset()
 {
-	m_harddisk = m_image->get_hard_disk_file();
 }
 
 void spi_sdcard_device::device_add_mconfig(machine_config &config)
@@ -111,116 +108,118 @@ void spi_sdcard_device::send_data(u16 count, sd_state new_state)
 
 void spi_sdcard_device::spi_clock_w(int state)
 {
-	// only respond if selected
-	if (m_ss)
+	// only respond if selected, and a clock edge
+	if (m_ss && state != m_clk_state)
 	{
-		// We implmement SPI Mode 3 signalling, in which we latch the data on
+		// We implement SPI Mode 3 signalling, in which we latch the data on
 		// rising clock edges, and shift the data on falling clock edges.
 		// See http://www.dejazzer.com/ee379/lecture_notes/lec12_sd_card.pdf for details
-		// on the 4 SPI signalling modes.  SD Cards can work in ether Mode 0 or Mode 3,
+		// on the 4 SPI signalling modes. SD Cards can work in either Mode 0 or Mode 3,
 		// both of which shift on the falling edge and latch on the rising edge but
 		// have opposite CLK polarity.
-
 		if (state)
-		{
-			m_in_latch &= ~0x01;
-			m_in_latch |= m_in_bit;
-			LOGMASKED(LOG_SPI, "\tsdcard: L %02x (%d) (out %02x)\n", m_in_latch, m_cur_bit, m_out_latch);
-			m_cur_bit++;
-			if (m_cur_bit == 8)
-			{
-				LOGMASKED(LOG_SPI, "SDCARD: got %02x\n", m_in_latch);
-				for (u8 i = 0; i < 5; i++)
-				{
-					m_cmd[i] = m_cmd[i + 1];
-				}
-				m_cmd[5] = m_in_latch;
-
-				switch (m_state)
-				{
-				case SD_STATE_IDLE:
-					do_command();
-					break;
-
-				case SD_STATE_WRITE_WAITFE:
-					if (m_in_latch == 0xfe)
-					{
-						m_state = SD_STATE_WRITE_DATA;
-						m_out_latch = 0xff;
-						m_write_ptr = 0;
-						change_state(SD_STATE_RCV);
-					}
-					break;
-
-				case SD_STATE_WRITE_DATA:
-					m_data[m_write_ptr++] = m_in_latch;
-					if (m_write_ptr == (m_blksize + 2))
-					{
-						u32 blk = (u32(m_cmd[1]) << 24) | (u32(m_cmd[2]) << 16) | (u32(m_cmd[3]) << 8) | u32(m_cmd[4]);
-						if (m_type == SD_TYPE_V2)
-						{
-							blk /= m_blksize;
-						}
-
-						LOGMASKED(LOG_GENERAL, "writing LBA %x, data %02x %02x %02x %02x\n", blk, m_data[0], m_data[1], m_data[2], m_data[3]);
-						if (hard_disk_write(m_harddisk, blk, &m_data[0]))
-						{
-							m_data[0] = DATA_RESPONSE_OK;
-						}
-						else
-						{
-							m_data[0] = DATA_RESPONSE_IO_ERROR;
-						}
-						m_data[1] = 0x01;
-
-						send_data(2, SD_STATE_IDLE);
-					}
-					break;
-
-				case SD_STATE_DATA_MULTI:
-					do_command();
-					if (m_state == SD_STATE_DATA_MULTI && m_out_count == 0)
-					{
-						m_data[0] = 0xfe; // data token
-						hard_disk_read(m_harddisk, m_blknext++, &m_data[1]);
-						util::crc16_t crc16 = util::crc16_creator::simple(
-							&m_data[1], m_blksize);
-						m_data[m_blksize + 1] = (crc16 >> 8) & 0xff;
-						m_data[m_blksize + 2] = (crc16 & 0xff);
-						send_data(1 + m_blksize + 2, SD_STATE_DATA_MULTI);
-					}
-					break;
-
-				default:
-					if (((m_cmd[0] & 0x70) == 0x40) || (m_out_count == 0)) // CMD0 - GO_IDLE_STATE
-					{
-						do_command();
-					}
-					break;
-				}
-			}
-		}
+			latch_in();
 		else
-		{
-			m_in_latch <<= 1;
-			m_out_latch <<= 1;
-			m_out_latch |= 1;
-			LOGMASKED(LOG_SPI, "\tsdcard: S %02x %02x (%d)\n", m_in_latch,
-					  m_out_latch, m_cur_bit);
+			shift_out();
+	}
+	m_clk_state = state;
+}
 
-			m_cur_bit &= 0x07;
-			if (m_cur_bit == 0)
+void spi_sdcard_device::latch_in()
+{
+	m_in_latch &= ~0x01;
+	m_in_latch |= m_in_bit;
+	LOGMASKED(LOG_SPI, "\tsdcard: L %02x (%d) (out %02x)\n", m_in_latch, m_cur_bit, m_out_latch);
+	m_cur_bit++;
+	if (m_cur_bit == 8)
+	{
+		LOGMASKED(LOG_SPI, "SDCARD: got %02x\n", m_in_latch);
+		for (u8 i = 0; i < 5; i++)
+		{
+			m_cmd[i] = m_cmd[i + 1];
+		}
+		m_cmd[5] = m_in_latch;
+
+		switch (m_state)
+		{
+		case SD_STATE_IDLE:
+			do_command();
+			break;
+
+		case SD_STATE_WRITE_WAITFE:
+			if (m_in_latch == 0xfe)
 			{
-				if (m_out_count > 0)
-				{
-					m_out_latch = m_data[m_out_ptr++];
-					LOGMASKED(LOG_SPI, "SDCARD: latching %02x (start of shift)\n", m_out_latch);
-					m_out_count--;
-				}
+				m_state = SD_STATE_WRITE_DATA;
+				m_out_latch = 0xff;
+				m_write_ptr = 0;
 			}
-			write_miso(BIT(m_out_latch, 7));
+			break;
+
+		case SD_STATE_WRITE_DATA:
+			m_data[m_write_ptr++] = m_in_latch;
+			if (m_write_ptr == (m_blksize + 2))
+			{
+				LOG("writing LBA %x, data %02x %02x %02x %02x\n", m_blknext, m_data[0], m_data[1], m_data[2], m_data[3]);
+				if (m_image->write(m_blknext, &m_data[0]))
+				{
+					m_data[0] = DATA_RESPONSE_OK;
+				}
+				else
+				{
+					m_data[0] = DATA_RESPONSE_IO_ERROR;
+				}
+				m_data[1] = 0x01;
+
+				send_data(2, SD_STATE_IDLE);
+			}
+			break;
+
+		case SD_STATE_DATA_MULTI:
+			do_command();
+			if (m_state == SD_STATE_DATA_MULTI && m_out_count == 0)
+			{
+				m_data[0] = 0xfe; // data token
+				m_image->read(m_blknext++, &m_data[1]);
+				util::crc16_t crc16 = util::crc16_creator::simple(&m_data[1], m_blksize);
+				m_data[m_blksize + 1] = (crc16 >> 8) & 0xff;
+				m_data[m_blksize + 2] = (crc16 & 0xff);
+				send_data(1 + m_blksize + 2, SD_STATE_DATA_MULTI);
+			}
+			break;
+
+		default:
+			if (((m_cmd[0] & 0x70) == 0x40) || (m_out_count == 0)) // CMD0 - GO_IDLE_STATE
+			{
+				do_command();
+			}
+			break;
 		}
 	}
+}
+
+void spi_sdcard_device::shift_out()
+{
+	m_in_latch <<= 1;
+	m_out_latch <<= 1;
+	m_out_latch |= 1;
+	LOGMASKED(LOG_SPI, "\tsdcard: S %02x %02x (%d)\n", m_in_latch, m_out_latch, m_cur_bit);
+
+	m_cur_bit &= 0x07;
+	if (m_cur_bit == 0)
+	{
+		if (m_out_ptr < SPI_DELAY_RESPONSE)
+		{
+			m_out_ptr++;
+		}
+		else if (m_out_count > 0)
+		{
+			m_out_latch = m_data[m_out_ptr - SPI_DELAY_RESPONSE];
+			m_out_ptr++;
+			LOGMASKED(LOG_SPI, "SDCARD: latching %02x (start of shift)\n", m_out_latch);
+			m_out_count--;
+		}
+	}
+	write_miso(BIT(m_out_latch, 7));
 }
 
 void spi_sdcard_device::do_command()
@@ -232,7 +231,7 @@ void spi_sdcard_device::do_command()
 		switch (m_cmd[0] & 0x3f)
 		{
 		case 0: // CMD0 - GO_IDLE_STATE
-			if (m_harddisk)
+			if (m_image->exists())
 			{
 				m_data[0] = 0x01;
 				send_data(1, SD_STATE_IDLE);
@@ -244,7 +243,12 @@ void spi_sdcard_device::do_command()
 			}
 			break;
 
-		case 8:                   // CMD8 - SEND_IF_COND (SD v2 only)
+		case 1: // CMD1 - SEND_OP_COND
+			m_data[0] = 0x00;
+			send_data(1, SD_STATE_READY);
+			break;
+
+		case 8: // CMD8 - SEND_IF_COND (SD v2 only)
 			m_data[0] = 0x01;
 			m_data[1] = 0;
 			m_data[2] = 0;
@@ -253,9 +257,14 @@ void spi_sdcard_device::do_command()
 			send_data(5, SD_STATE_IDLE);
 			break;
 
-		case 10:              // CMD10 - SEND_CID
-			m_data[0] = 0x01; // initial R1 response
-			m_data[1] = 0x00; // throwaway byte before data transfer
+		case 9: // CMD9 - SEND_CSD
+			m_data[0] = 0x00; // TODO
+			send_data(1, SD_STATE_STBY);
+			break;
+
+		case 10: // CMD10 - SEND_CID
+			m_data[0] = 0x00; // initial R1 response
+			m_data[1] = 0xff; // throwaway byte before data transfer
 			m_data[2] = 0xfe; // data token
 			m_data[3] = 'M';  // Manufacturer ID - we'll use M for MAME
 			m_data[4] = 'M';  // OEM ID - MD for MAMEdev
@@ -286,13 +295,17 @@ void spi_sdcard_device::do_command()
 
 		case 12: // CMD12 - STOP_TRANSMISSION
 			m_data[0] = 0;
-			send_data(1,
-					  m_state == SD_STATE_RCV ? SD_STATE_PRG : SD_STATE_TRAN);
+			send_data(1, m_state == SD_STATE_RCV ? SD_STATE_PRG : SD_STATE_TRAN);
+			break;
+
+		case 13: // CMD13 - SEND_STATUS
+			m_data[0] = 0; // TODO
+			send_data(1, SD_STATE_STBY);
 			break;
 
 		case 16: // CMD16 - SET_BLOCKLEN
 			m_blksize = (u16(m_cmd[3]) << 8) | u16(m_cmd[4]);
-			if (hard_disk_set_block_size(m_harddisk, m_blksize))
+			if (m_image->set_block_size(m_blksize))
 			{
 				m_data[0] = 0;
 			}
@@ -301,15 +314,13 @@ void spi_sdcard_device::do_command()
 				m_data[0] = 0xff; // indicate an error
 				// if false was returned, it means the hard disk is a CHD file, and we can't resize the
 				// blocks on CHD files.
-				logerror("spi_sdcard: Couldn't change block size to %d, wrong "
-						 "CHD file?",
-						 m_blksize);
+				logerror("spi_sdcard: Couldn't change block size to %d, wrong CHD file?", m_blksize);
 			}
 			send_data(1, SD_STATE_TRAN);
 			break;
 
 		case 17: // CMD17 - READ_SINGLE_BLOCK
-			if (m_harddisk)
+			if (m_image->exists())
 			{
 				m_data[0] = 0x00; // initial R1 response
 				// data token occurs some time after the R1 response.  A2SD expects at least 1
@@ -321,8 +332,8 @@ void spi_sdcard_device::do_command()
 				{
 					blk /= m_blksize;
 				}
-				LOGMASKED(LOG_GENERAL, "reading LBA %x\n", blk);
-				hard_disk_read(m_harddisk, blk, &m_data[3]);
+				LOG("reading LBA %x\n", blk);
+				m_image->read(blk, &m_data[3]);
 				{
 					util::crc16_t crc16 = util::crc16_creator::simple(&m_data[3], m_blksize);
 					m_data[m_blksize + 3] = (crc16 >> 8) & 0xff;
@@ -338,7 +349,7 @@ void spi_sdcard_device::do_command()
 			break;
 
 		case 18: // CMD18 - CMD_READ_MULTIPLE_BLOCK
-			if (m_harddisk)
+			if (m_image->exists())
 			{
 				m_data[0] = 0x00; // initial R1 response
 				// data token occurs some time after the R1 response.  A2SD
@@ -359,7 +370,12 @@ void spi_sdcard_device::do_command()
 
 		case 24: // CMD24 - WRITE_BLOCK
 			m_data[0] = 0;
-			send_data(1, SD_STATE_RCV);
+			m_blknext = (u32(m_cmd[1]) << 24) | (u32(m_cmd[2]) << 16) | (u32(m_cmd[3]) << 8) | u32(m_cmd[4]);
+			if (m_type == SD_TYPE_V2)
+			{
+				m_blknext /= m_blksize;
+			}
+			send_data(1, SD_STATE_WRITE_WAITFE);
 			break;
 
 		case 41:
@@ -394,6 +410,12 @@ void spi_sdcard_device::do_command()
 			m_data[3] = 0;
 			m_data[4] = 0;
 			send_data(5, SD_STATE_DATA);
+			break;
+
+		case 59: // CMD59 - CRC_ON_OFF
+			m_data[0] = 0;
+			// TODO CRC 1-on, 0-off
+			send_data(1, SD_STATE_STBY);
 			break;
 
 		default:

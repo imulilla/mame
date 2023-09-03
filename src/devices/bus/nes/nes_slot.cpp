@@ -158,11 +158,11 @@ device_nes_cart_interface::~device_nes_cart_interface()
 //  pointer allocators
 //-------------------------------------------------
 
-void device_nes_cart_interface::prg_alloc(size_t size, const char *tag)
+void device_nes_cart_interface::prg_alloc(size_t size)
 {
 	if (m_prg == nullptr)
 	{
-		m_prg = device().machine().memory().region_alloc(std::string(tag).append(NESSLOT_PRGROM_REGION_TAG).c_str(), size, 1, ENDIANNESS_LITTLE)->base();
+		m_prg = device().machine().memory().region_alloc(device().subtag("^cart:prg_rom"), size, 1, ENDIANNESS_LITTLE)->base();
 		m_prg_size = size;
 		m_prg_chunks = size / 0x4000;
 		if (size % 0x2000)
@@ -223,25 +223,21 @@ void device_nes_cart_interface::prg_alloc(size_t size, const char *tag)
 	}
 }
 
-void device_nes_cart_interface::vrom_alloc(size_t size, const char *tag)
+void device_nes_cart_interface::vrom_alloc(size_t size)
 {
 	if (m_vrom == nullptr)
 	{
-		std::string tempstring(tag);
-		tempstring.append(NESSLOT_CHRROM_REGION_TAG);
-		m_vrom = device().machine().memory().region_alloc(tempstring.c_str(), size, 1, ENDIANNESS_LITTLE)->base();
+		m_vrom = device().machine().memory().region_alloc(device().subtag("^cart:chr_rom"), size, 1, ENDIANNESS_LITTLE)->base();
 		m_vrom_size = size;
 		m_vrom_chunks = size / 0x2000;
 	}
 }
 
-void device_nes_cart_interface::misc_rom_alloc(size_t size, const char *tag)
+void device_nes_cart_interface::misc_rom_alloc(size_t size)
 {
 	if (m_misc_rom == nullptr)
 	{
-		std::string tempstring(tag);
-		tempstring.append(NESSLOT_MISC_ROM_REGION_TAG);
-		m_misc_rom = device().machine().memory().region_alloc(tempstring.c_str(), size, 1, ENDIANNESS_LITTLE)->base();
+		m_misc_rom = device().machine().memory().region_alloc(device().subtag("^cart:misc_rom"), size, 1, ENDIANNESS_LITTLE)->base();
 		m_misc_rom_size = size;
 	}
 }
@@ -471,24 +467,11 @@ void device_nes_cart_interface::set_nt_mirroring(int mirroring)
 //  Interrupt helpers
 //-------------------------------------------------
 
-DECLARE_WRITE_LINE_MEMBER(device_nes_cart_interface::set_irq_line)
+void device_nes_cart_interface::set_irq_line(int state)
 {
-	// use hold_irq_line for HOLD_LINE semantics (not recommended)
 	assert(state == ASSERT_LINE || state == CLEAR_LINE);
 
 	m_maincpu->set_input_line(m6502_device::IRQ_LINE, state);
-}
-
-void device_nes_cart_interface::hold_irq_line()
-{
-	// hack which requires the CPU object
-	m_maincpu->set_input_line(m6502_device::IRQ_LINE, HOLD_LINE);
-}
-
-void device_nes_cart_interface::reset_cpu()
-{
-	// another hack
-	m_maincpu->set_pc(0xfffc);
 }
 
 //-------------------------------------------------
@@ -500,7 +483,7 @@ void device_nes_cart_interface::reset_cpu()
 // the memory banks)
 uint8_t device_nes_cart_interface::hi_access_rom(uint32_t offset)
 {
-	int bank = (offset & 0x6000) >> 13;
+	int bank = BIT(offset, 13, 2);
 	return m_prg[m_prg_bank[bank] * 0x2000 + (offset & 0x1fff)];
 }
 
@@ -525,7 +508,7 @@ uint8_t device_nes_cart_interface::account_bus_conflict(uint32_t offset, uint8_t
 
 void device_nes_cart_interface::chr_w(offs_t offset, uint8_t data)
 {
-	int bank = offset >> 10;
+	int bank = BIT(offset, 10, 3);
 
 	if (m_chr_src[bank] == CHRRAM)
 		m_chr_access[bank][offset & 0x3ff] = data;
@@ -533,24 +516,22 @@ void device_nes_cart_interface::chr_w(offs_t offset, uint8_t data)
 
 uint8_t device_nes_cart_interface::chr_r(offs_t offset)
 {
-	int bank = offset >> 10;
+	int bank = BIT(offset, 10, 3);
 	return m_chr_access[bank][offset & 0x3ff];
 }
 
 
 void device_nes_cart_interface::nt_w(offs_t offset, uint8_t data)
 {
-	int page = (offset & 0xc00) >> 10;
+	int page = BIT(offset, 10, 2);
 
-	if (!m_nt_writable[page])
-		return;
-
-	m_nt_access[page][offset & 0x3ff] = data;
+	if (m_nt_writable[page])
+		m_nt_access[page][offset & 0x3ff] = data;
 }
 
 uint8_t device_nes_cart_interface::nt_r(offs_t offset)
 {
-	int page = (offset & 0xc00) >> 10;
+	int page = BIT(offset, 10, 2);
 	return m_nt_access[page][offset & 0x3ff];
 }
 
@@ -744,7 +725,7 @@ void nes_cart_slot_device::pcb_reset()
 #include "nes_ines.hxx"
 
 
-image_init_result nes_cart_slot_device::call_load()
+std::pair<std::error_condition, std::string> nes_cart_slot_device::call_load()
 {
 	if (m_cart)
 	{
@@ -759,35 +740,27 @@ image_init_result nes_cart_slot_device::call_load()
 			if ((magic[0] == 'N') && (magic[1] == 'E') && (magic[2] == 'S'))    // If header starts with 'NES' it is iNES
 			{
 				if (length() <= 0x10)
-				{
-					logerror("%s only contains the iNES header and no data.\n", filename());
-					return image_init_result::FAIL;
-				}
+					return std::make_pair(image_error::INVALIDLENGTH, "File contains iNES header with no data");
 
 				call_load_ines();
 			}
 			else if ((magic[0] == 'U') && (magic[1] == 'N') && (magic[2] == 'I') && (magic[3] == 'F')) // If header starts with 'UNIF' it is UNIF
 			{
 				if (length() <= 0x20)
-				{
-					logerror("%s only contains the UNIF header and no data.\n", filename());
-					return image_init_result::FAIL;
-				}
+					return std::make_pair(image_error::INVALIDLENGTH, "File contains UNIF header with no data");
 
 				call_load_unif();
 			}
 			else
 			{
-				logerror("%s is NOT a file in either iNES or UNIF format.\n", filename());
-				seterror(image_error::INVALIDIMAGE, "File is neither iNES or UNIF format");
-				return image_init_result::FAIL;
+				return std::make_pair(image_error::INVALIDIMAGE, "File is not an iNES or UNIF cartridge image");
 			}
 		}
 		else
 			call_load_pcb();
 	}
 
-	return image_init_result::PASS;
+	return std::make_pair(std::error_condition(), std::string());
 }
 
 

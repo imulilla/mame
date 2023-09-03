@@ -22,7 +22,7 @@ public:
 	gcm394_base_video_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock);
 
 	uint32_t screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
-	DECLARE_WRITE_LINE_MEMBER(vblank);
+	void vblank(int state);
 
 	auto space_read_callback() { return m_space_read_cb.bind(); }
 
@@ -140,8 +140,7 @@ public:
 
 protected:
 
-	static const device_timer_id TIMER_SCREENPOS = 2;
-	virtual void device_timer(emu_timer &timer, device_timer_id id, int param) override;
+	TIMER_CALLBACK_MEMBER(screen_pos_reached);
 
 	inline void check_video_irq();
 

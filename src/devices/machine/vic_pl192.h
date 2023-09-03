@@ -15,7 +15,7 @@ public:
 	auto out_fiq_cb() { return m_out_fiq_func.bind(); }
 
 	template<unsigned IRQ>
-	DECLARE_WRITE_LINE_MEMBER(irq_w) { set_irq_line(IRQ, state); }
+	void irq_w(int state) { set_irq_line(IRQ, state); }
 
 	void map(address_map &map);
 
@@ -50,11 +50,17 @@ public:
 	void vect_ctl_w(offs_t offset, u32 data);
 
 protected:
-	static constexpr device_timer_id TIMER_CHECK_IRQ = 0;
-
 	vic_pl190_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, uint32_t clock);
 
+	// device_t implementation
+	virtual void device_start() override;
+	virtual void device_reset() override;
+
+	virtual space_config_vector memory_space_config() const override;
+
 	virtual void update_vector();
+
+	TIMER_CALLBACK_MEMBER(irq_sync_tick);
 
 	u8 num_vectors; // number of available vectored interrupts
 
@@ -66,13 +72,7 @@ protected:
 	u8 priority; // priority level of the current interrupt, if any
 	u8 periph_id[4], pcell_id[4];
 
-	// device-level overrides
-	virtual void device_resolve_objects() override;
-	virtual void device_start() override;
-	virtual void device_reset() override;
-	virtual void device_timer(emu_timer &timer, device_timer_id id, int param) override;
-
-	virtual space_config_vector memory_space_config() const override;
+	emu_timer *m_irq_sync_timer;
 
 private:
 	void set_irq_line(int irq, int state);

@@ -63,6 +63,8 @@ protected:
 	required_device<ram_device> m_ram;
 	required_ioport m_config;
 
+	void prst_w(int state);
+
 private:
 	void tube_rc6502_mem(address_map &map);
 

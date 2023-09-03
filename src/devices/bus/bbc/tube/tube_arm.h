@@ -50,6 +50,8 @@ private:
 	memory_passthrough_handler m_rom_shadow_tap;
 
 	void tube_arm_mem(address_map &map);
+
+	void prst_w(int state);
 };
 
 

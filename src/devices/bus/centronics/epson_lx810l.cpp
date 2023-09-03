@@ -329,7 +329,7 @@ void epson_lx810l_device::device_start()
 	m_online_led.resolve();
 	m_ready_led.resolve();
 
-	m_cr_timer = timer_alloc(TIMER_CR);
+	m_cr_timer = timer_alloc(FUNC(epson_lx810l_device::cr_tick), this);
 }
 
 
@@ -344,26 +344,22 @@ void epson_lx810l_device::device_reset()
 
 
 //-------------------------------------------------
-//  device_timer - device-specific timer
+//  cr_tick - handle a carriage return
 //-------------------------------------------------
 
-void epson_lx810l_device::device_timer(emu_timer &timer, device_timer_id id, int param)
+TIMER_CALLBACK_MEMBER(epson_lx810l_device::cr_tick)
 {
-	switch (id) {
-	case TIMER_CR:
-		/* The firmware issues two half-steps in sequence, one immediately
-		 * after the other. At full speed, the motor does two half-steps at
-		 * each 833 microseconds. A timer fires the printhead twice, with
-		 * the same period as each half-step (417 microseconds), but with
-		 * a 356 microseconds delay relative to the motor steps.
-		 */
-		m_in_between_offset += param;
+	/* The firmware issues two half-steps in sequence, one immediately
+	 * after the other. At full speed, the motor does two half-steps at
+	 * each 833 microseconds. A timer fires the printhead twice, with
+	 * the same period as each half-step (417 microseconds), but with
+	 * a 356 microseconds delay relative to the motor steps.
+	 */
+	m_in_between_offset += param;
 
-		m_real_cr_steps--;
-		if (m_real_cr_steps)
-			m_cr_timer->adjust(attotime::from_usec(400), m_bitmap_printer->m_cr_direction);
-		break;
-	}
+	m_real_cr_steps--;
+	if (m_real_cr_steps)
+		m_cr_timer->adjust(attotime::from_usec(400), m_bitmap_printer->m_cr_direction);
 }
 
 
@@ -526,7 +522,7 @@ void epson_lx810l_device::cr_stepper(uint8_t data)
 	}
 }
 
-WRITE_LINE_MEMBER( epson_lx810l_device::e05a30_ready )
+void epson_lx810l_device::e05a30_ready(int state)
 {
 	// must be longer than attotime::zero - 0.09 is minimum to initialize properly
 	m_maincpu->pulse_input_line(INPUT_LINE_NMI, attotime::from_double(0.09));
@@ -537,7 +533,7 @@ WRITE_LINE_MEMBER( epson_lx810l_device::e05a30_ready )
     Extended Timer Output
 ***************************************************************************/
 
-WRITE_LINE_MEMBER( epson_lx810l_device::co0_w )
+void epson_lx810l_device::co0_w(int state)
 {
 	/* Printhead is being fired on !state. */
 	if (!state) {
