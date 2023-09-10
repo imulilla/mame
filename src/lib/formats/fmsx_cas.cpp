@@ -2,7 +2,7 @@
 // copyright-holders:Sean Young
 
 #include "fmsx_cas.h"
-#include "tzx_cas.cpp" //add TSX format from TZX
+#include "tzx_cas.h" //add TSX format from TZX
 
 #include <cstring>
 
