@@ -9,6 +9,7 @@
 **************************************************************************/
 
 #include "sord_cas.h"
+#include "tzx_cas.h" //add TSX format from TZX
 
 #include <cstring>
 
@@ -131,4 +132,5 @@ static const cassette_image::Format sordm5_cas_format =
 
 CASSETTE_FORMATLIST_START(sordm5_cassette_formats)
 	CASSETTE_FORMAT(sordm5_cas_format)
+    CASSETTE_FORMAT(tsx_cassette_format)
 CASSETTE_FORMATLIST_END
