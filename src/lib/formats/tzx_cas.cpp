@@ -1019,7 +1019,7 @@ static const cassette_image::Format cdt_cassette_format =
 	nullptr
 };
 
-static const cassette_image::Format tsx_cassette_format =// add TSX format
+const cassette_image::Format tsx_cassette_format =// add TSX format
 {
 	"tsx",
 	tzx_cassette_identify,
@@ -1036,6 +1036,3 @@ CASSETTE_FORMATLIST_START(cdt_cassette_formats)
 	CASSETTE_FORMAT(cdt_cassette_format)
 CASSETTE_FORMATLIST_END
 
-CASSETTE_FORMATLIST_START(tsx_cassette_formats)// add TSX format
-	CASSETTE_FORMAT(tsx_cassette_format)
-CASSETTE_FORMATLIST_END
